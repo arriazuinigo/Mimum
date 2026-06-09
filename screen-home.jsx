@@ -16,9 +16,12 @@ const HOME_STAGE = {
     nextLabel: 'Baseline', nextDetail: '3 of 5 readings', nextProg: '60%', nextHead: 'Getting started',
   },
 };
-function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure }) {
+function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure, lastReading, readings = [] }) {
   const cfg = HOME_STAGE[stage] || HOME_STAGE.postpartum;
   const goMeasure = () => (onMeasure ? onMeasure('intro') : onNav('measure'));
+  const last = lastReading || { sys: 118, dia: 76, tier: 'steady' };
+  const spark = readings.length ? readings.slice(0, 6).reverse().map((r) => Number(r.sys || r.systolic)) : [124, 121, 122, 119, 120, 118];
+  const lastInRange = last.tier === 'steady';
   const week = [
     { label: 'M', state: 'done' }, { label: 'T', state: 'done' },
     { label: 'W', state: 'done' }, { label: 'T', state: 'done' },
@@ -111,14 +114,14 @@ function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure 
         <Card pad={16} onClick={() => onNav('trends')}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>Last reading</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '4px 0 6px' }}>
-            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>118</span>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-3)' }}>/76</span>
+            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>{last.sys || last.systolic}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-3)' }}>/{last.dia || last.diastolic}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: 'var(--sage-ink)' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage-dot)' }} />In range
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: lastInRange ? 'var(--sage-ink)' : 'var(--honey-ink)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: lastInRange ? 'var(--sage-dot)' : 'var(--honey-dot)' }} />{lastInRange ? 'In range' : 'Worth watching'}
             </span>
-            <Sparkline data={[124, 121, 122, 119, 120, 118]} width={56} height={22} />
+            <Sparkline data={spark} width={56} height={22} />
           </div>
         </Card>
         <Card pad={16} onClick={() => onNav('trends')}>

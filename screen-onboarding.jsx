@@ -254,7 +254,7 @@ function OnboardingScreen({ onExit, onFinish, onStageSet }) {
         {meta.tier && <div className="fade-up" style={{ animationDelay: '140ms', marginTop: 16 }}><TierPill tier={meta.tier} size="lg" /></div>}
         {!meta.tier && <div className="fade-up" style={{ animationDelay: '140ms', marginTop: 16 }}><Pill tone="sage"><Icon name="leaf" size={14} stroke="var(--sage-ink)" />Baseline started</Pill></div>}
         <div className="fade-up" style={{ animationDelay: '200ms', marginTop: 26, width: '100%', maxWidth: 320 }}>
-          <PrimaryButton onClick={() => onFinish(stage)}>Go to my home</PrimaryButton>
+          <PrimaryButton onClick={() => onFinish(stage, answers)}>Go to my home</PrimaryButton>
         </div>
       </div>
     );

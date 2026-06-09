@@ -33,6 +33,7 @@ const TIER_PALETTES = {
 
 function Root() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const backend = useMimumBackend();
   const [scale, setScale] = useState(1);
   const [screen, setScreen] = useState('home');
   const [history, setHistory] = useState(['home']);
@@ -70,27 +71,50 @@ function Root() {
   const exitOverlay = () => setScreen('home');
   const openMeasure = (start = 'intro') => { setMeasureStart(start); nav('measure'); };
 
-  const user = { name: t.name || 'María', tier: 'steady' };
+  const userName = backend.profile?.name || backend.user?.name || t.name || 'María';
+  const user = { name: userName, tier: 'steady' };
+  const readings = backend.readings || [];
+  const lastReading = readings[0] || null;
   const TAB_SCREENS = ['home', 'journey', 'trends', 'log'];
-  const showTabs = TAB_SCREENS.includes(screen);
+  const signedIn = Boolean(backend.user);
+  const onboardingRequired = signedIn && backend.profileReady && backend.profile?.onboardingComplete !== true;
+  const activeScreen = onboardingRequired ? 'onboarding' : screen;
+  const showTabs = signedIn && backend.profileReady && !onboardingRequired && TAB_SCREENS.includes(activeScreen);
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
         <IOSDevice>
           <div style={{ position: 'relative', width: '100%', height: '100%', background: 'var(--bg-app)', overflow: 'hidden' }}>
-            {screen === 'home' && <HomeScreen user={user} stage={stage} mascotState={t.homeMascot} onNav={nav} onMeasure={openMeasure} />}
-            {screen === 'journey' && <JourneyScreen onNav={nav} />}
-            {screen === 'trends' && <TrendsScreen stage={stage} onNav={nav} />}
-            {screen === 'log' && <LogScreen onNav={nav} />}
-            {screen === 'measure' && <BreatheScreen start={measureStart} simulate={t.reading === 'Elevated' ? 'elevated' : 'inrange'} onExit={exitOverlay} onNav={nav} onSaved={() => nav('home')} />}
-            {screen === 'handoff' && <HandoffScreen onExit={() => setScreen('trends')} onNav={nav} />}
-            {screen === 'onboarding' && <OnboardingScreen onExit={exitOverlay} onStageSet={setStage} onFinish={(s) => { if (s) setStage(s); nav('home'); }} />}
-            {screen === 'records' && <RecordsScreen onExit={() => setScreen('profile')} onNav={nav} />}
-            {screen === 'profile' && <ProfileScreen user={user} onExit={exitOverlay} onNav={nav} />}
-            {screen === 'premium' && <PremiumScreen onExit={exitOverlay} />}
+            {backend.loading && <AuthLoadingScreen />}
+            {!backend.loading && !signedIn && (
+              <AuthScreen
+                mode={backend.mode}
+                busy={backend.busy}
+                error={backend.error}
+                onSignIn={backend.signIn}
+                onSignUp={backend.signUp}
+                onGoogle={backend.signInWithGoogle}
+                onGuest={backend.continueAsGuest}
+              />
+            )}
+            {!backend.loading && signedIn && !backend.profileReady && <AuthLoadingScreen />}
+            {!backend.loading && signedIn && backend.profileReady && (
+              <>
+                {activeScreen === 'home' && <HomeScreen user={user} stage={stage} mascotState={t.homeMascot} onNav={nav} onMeasure={openMeasure} lastReading={lastReading} readings={readings} />}
+                {activeScreen === 'journey' && <JourneyScreen onNav={nav} />}
+                {activeScreen === 'trends' && <TrendsScreen stage={stage} onNav={nav} readings={readings} />}
+                {activeScreen === 'log' && <LogScreen onNav={nav} />}
+                {activeScreen === 'measure' && <BreatheScreen start={measureStart} simulate={t.reading === 'Elevated' ? 'elevated' : 'inrange'} onExit={exitOverlay} onNav={nav} onSaved={() => nav('home')} onSaveReading={backend.saveReading} />}
+                {activeScreen === 'handoff' && <HandoffScreen onExit={() => setScreen('trends')} onNav={nav} />}
+                {activeScreen === 'onboarding' && <OnboardingScreen onExit={exitOverlay} onStageSet={setStage} onFinish={async (s, answers) => { const nextStage = s || stage; if (s) setStage(s); await backend.saveProfile({ name: userName, email: backend.user.email || '', situation: nextStage, stage: nextStage, onboardingAnswers: answers || {}, onboardingComplete: true }); nav('home'); }} />}
+                {activeScreen === 'records' && <RecordsScreen onExit={() => setScreen('profile')} onNav={nav} />}
+                {activeScreen === 'profile' && <ProfileScreen user={user} auth={{ email: backend.user.email, mode: backend.mode, onSignOut: backend.signOut }} onExit={exitOverlay} onNav={nav} />}
+                {activeScreen === 'premium' && <PremiumScreen onExit={exitOverlay} />}
+              </>
+            )}
 
-            {showTabs && <TabBar active={screen} onNav={nav} />}
+            {showTabs && <TabBar active={activeScreen} onNav={nav} />}
           </div>
         </IOSDevice>
       </div>

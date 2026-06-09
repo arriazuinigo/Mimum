@@ -8,16 +8,27 @@ const BREATH_PHASES = [
   { name: 'out', dur: 6000, scale: 0.62, label: 'Breathe out', ease: 'cubic-bezier(.4,.0,.4,1)' },
 ];
 const TOTAL_BREATHS = 4;
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const makeNormalReading = () => {
+  const sys = randomInt(105, 119);
+  const dia = randomInt(65, 79);
+  return {
+    sys,
+    dia,
+    pulse: randomInt(62, 84),
+    tier: 'steady',
+    manual: false,
+    generated: true,
+  };
+};
 
-function BreatheScreen({ onExit, onNav, onSaved, simulate = 'inrange', start = 'intro' }) {
+function BreatheScreen({ onExit, onNav, onSaved, onSaveReading, simulate = 'inrange', start = 'intro' }) {
   // intro → connect → guide → breathing → measuring → result   (+ 'manual' branch)
   const [phase, setPhase] = useState(start);
   const [manualReading, setManualReading] = useState(null);
+  const [syncedReading] = useState(() => makeNormalReading());
 
-  const synced = simulate === 'elevated'
-    ? { sys: 134, dia: 86, pulse: 78, tier: 'attention' }
-    : { sys: 118, dia: 76, pulse: 70, tier: 'steady' };
-  const reading = manualReading || synced;
+  const reading = manualReading || syncedReading;
   const lavBg = phase === 'breathing';
 
   return (
@@ -34,7 +45,7 @@ function BreatheScreen({ onExit, onNav, onSaved, simulate = 'inrange', start = '
       {phase === 'breathing' && <BreathePacer onSkip={() => setPhase('measuring')} onDone={() => setPhase('measuring')} onExit={onExit} />}
       {phase === 'measuring' && <Measuring onDone={() => setPhase('result')} onExit={onExit} />}
       {phase === 'manual' && <ManualEntry onBack={() => setPhase('intro')} onSave={(r) => { setManualReading(r); setPhase('result'); }} />}
-      {phase === 'result' && <ResultView reading={reading} manual={!!manualReading} onExit={onExit} onNav={onNav} onSaved={onSaved} />}
+      {phase === 'result' && <ResultView reading={reading} manual={!!manualReading} onExit={onExit} onNav={onNav} onSaved={onSaved} onSaveReading={onSaveReading} />}
     </div>
   );
 }
@@ -213,7 +224,7 @@ function ManualEntry({ onBack, onSave }) {
       </div>
 
       <div style={{ padding: '10px 22px 30px', background: 'linear-gradient(180deg, transparent, var(--bg-app) 30%)' }}>
-        <PrimaryButton onClick={() => onSave({ sys, dia, pulse, tier, manual: true })} icon={<Icon name="check" size={19} stroke="#fff" sw={2.4} />}>Save this reading</PrimaryButton>
+        <PrimaryButton onClick={() => onSave({ sys, dia, pulse, tier, manual: true, takenAtLabel: when })} icon={<Icon name="check" size={19} stroke="#fff" sw={2.4} />}>Save this reading</PrimaryButton>
       </div>
     </div>
   );
@@ -358,9 +369,24 @@ function Measuring({ onDone, onExit }) {
 }
 
 // ── Result ─────────────────────────────────────────────────────
-function ResultView({ reading, manual, onExit, onNav, onSaved }) {
+function ResultView({ reading, manual, onExit, onNav, onSaved, onSaveReading }) {
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const inRange = reading.tier === 'steady';
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      if (onSaveReading) await onSaveReading({ ...reading, manual });
+      setSaved(true);
+    } catch (err) {
+      setSaveError(err?.message || 'We could not save this reading. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (saved) {
     return (
@@ -445,7 +471,14 @@ function ResultView({ reading, manual, onExit, onNav, onSaved }) {
       )}
 
       <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <PrimaryButton onClick={() => setSaved(true)} icon={<Icon name="check" size={20} stroke="#fff" sw={2.4} />}>Save to my journey</PrimaryButton>
+        {saveError && (
+          <div style={{ borderRadius: 16, padding: '12px 14px', background: 'var(--honey-fill)', color: 'var(--honey-ink)', fontSize: 13, lineHeight: 1.35, fontWeight: 700 }}>
+            {saveError}
+          </div>
+        )}
+        <PrimaryButton onClick={save} style={{ opacity: saving ? 0.6 : 1 }} icon={<Icon name="check" size={20} stroke="#fff" sw={2.4} />}>
+          {saving ? 'Saving...' : 'Save to my journey'}
+        </PrimaryButton>
         <GhostButton onClick={onExit} style={{ alignSelf: 'center' }}>Not now</GhostButton>
       </div>
     </div>

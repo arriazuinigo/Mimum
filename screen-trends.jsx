@@ -1,5 +1,5 @@
 // screen-trends.jsx — Trajectory / My risk
-function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum' }) {
+function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum', readings = [] }) {
   const checkpoints = [
     { label: '6 wk', state: 'done', date: 'Apr 28' },
     { label: '12 wk', state: 'current', date: 'Jun 24' },
@@ -7,6 +7,14 @@ function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum' }) {
     { label: '12 mo', state: 'future', date: 'Mar ’27' },
   ];
   const [tab, setTab] = useState('bp');
+  const bpReadings = readings.slice(0, 7).reverse();
+  const bpSys = bpReadings.length ? bpReadings.map((r) => Number(r.sys || r.systolic)) : [126, 123, 121, 124, 119, 120, 118];
+  const bpDia = bpReadings.length ? bpReadings.map((r) => Number(r.dia || r.diastolic)) : [84, 82, 80, 81, 78, 79, 76];
+  const bpLabels = bpReadings.length ? bpReadings.map((_, i) => (i === bpReadings.length - 1 ? 'now' : `${i + 1}`)) : ['wk1', 'wk2', 'wk3', 'wk4', 'wk5', 'wk6', 'now'];
+  const manualIdx = bpReadings.reduce((acc, r, i) => (r.manual ? [...acc, i] : acc), []);
+  const chartManualIdx = bpReadings.length ? manualIdx : [3];
+  const latest = bpReadings[bpReadings.length - 1];
+  const latestValue = latest ? `${latest.sys || latest.systolic}/${latest.dia || latest.diastolic}` : '118/76';
 
   return (
     <AppScreen>
@@ -56,8 +64,8 @@ function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum' }) {
       <Card style={{ marginBottom: 16 }}>
         {tab === 'bp' && (
           <>
-            <ChartHead title="Blood pressure" value="118/76" unit="mmHg avg" tone="sage" trend="Steady this month" />
-            <BPTrendChart sys={[126, 123, 121, 124, 119, 120, 118]} dia={[84, 82, 80, 81, 78, 79, 76]} labels={['wk1', 'wk2', 'wk3', 'wk4', 'wk5', 'wk6', 'now']} manualIdx={[3]} />
+            <ChartHead title="Blood pressure" value={latestValue} unit="mmHg latest" tone="sage" trend="Steady this month" />
+            <BPTrendChart sys={bpSys} dia={bpDia} labels={bpLabels} manualIdx={chartManualIdx} />
             <LegendRow items={[['var(--blush-500)', 'Systolic'], ['var(--lav-dot)', 'Diastolic', true], ['var(--blush-500)', 'Manual', false, true]]} />
           </>
         )}

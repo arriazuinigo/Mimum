@@ -1,5 +1,5 @@
 // screen-profile.jsx — Profile & settings (entry to records, etc.)
-function ProfileScreen({ user, onExit, onNav }) {
+function ProfileScreen({ user, auth, onExit, onNav }) {
   const sections = [
     {
       title: 'My health', rows: [
@@ -100,6 +100,33 @@ function ProfileScreen({ user, onExit, onNav }) {
             </Card>
           </div>
         ))}
+
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '0 4px 10px' }}>Account</div>
+          <Card pad={0} style={{ overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="lock" size={22} stroke="var(--ink-2)" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--ink)' }}>{auth?.email || 'Guest account'}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>{auth?.mode === 'firebase' ? 'Synced with Firebase' : 'Stored on this device'}</div>
+              </div>
+            </div>
+            <button onClick={auth?.onSignOut} style={{
+              display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
+              padding: '15px 16px', background: 'transparent', borderTop: '1px solid var(--hairline)', cursor: 'pointer',
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--blush-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="chevronLeft" size={22} stroke="var(--rose-ink)" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--ink)' }}>Sign out</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>Come back anytime</div>
+              </div>
+            </button>
+          </Card>
+        </div>
       </div>
     </AppScreen>
   );

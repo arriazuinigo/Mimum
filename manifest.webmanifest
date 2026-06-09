@@ -1,0 +1,18 @@
+{
+  "name": "Mimum",
+  "short_name": "Mimum",
+  "description": "Heart care, gently.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7eeeb",
+  "theme_color": "#f7eeeb",
+  "icons": [
+    {
+      "src": "uploads/image-removebg-preview-4.png",
+      "sizes": "676x369",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
