@@ -7,14 +7,22 @@ function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum', readings
     { label: '12 mo', state: 'future', date: 'Mar ’27' },
   ];
   const [tab, setTab] = useState('bp');
-  const bpReadings = readings.slice(0, 7).reverse();
-  const bpSys = bpReadings.length ? bpReadings.map((r) => Number(r.sys || r.systolic)) : [126, 123, 121, 124, 119, 120, 118];
-  const bpDia = bpReadings.length ? bpReadings.map((r) => Number(r.dia || r.diastolic)) : [84, 82, 80, 81, 78, 79, 76];
-  const bpLabels = bpReadings.length ? bpReadings.map((_, i) => (i === bpReadings.length - 1 ? 'now' : `${i + 1}`)) : ['wk1', 'wk2', 'wk3', 'wk4', 'wk5', 'wk6', 'now'];
-  const manualIdx = bpReadings.reduce((acc, r, i) => (r.manual ? [...acc, i] : acc), []);
-  const chartManualIdx = bpReadings.length ? manualIdx : [3];
-  const latest = bpReadings[bpReadings.length - 1];
-  const latestValue = latest ? `${latest.sys || latest.systolic}/${latest.dia || latest.diastolic}` : '118/76';
+  const metrics = MimumReadingMetrics.summarize(readings);
+  const padSeries = (values, fallback) => values.length >= 2 ? values : values.length === 1 ? [values[0], values[0]] : fallback;
+  const padLabels = (labels, fallback) => labels.length >= 2 ? labels : labels.length === 1 ? ['', labels[0]] : fallback;
+  const bpSys = padSeries(metrics.chart.sys, [126, 123, 121, 124, 119, 120, 118]);
+  const bpDia = padSeries(metrics.chart.dia, [84, 82, 80, 81, 78, 79, 76]);
+  const bpLabels = padLabels(metrics.chart.labels, ['wk1', 'wk2', 'wk3', 'wk4', 'wk5', 'wk6', 'now']);
+  const chartManualIdx = metrics.chart.manualIdx.length && metrics.chart.sys.length >= 2 ? metrics.chart.manualIdx : [];
+  const latest = metrics.latest;
+  const latestValue = latest ? `${latest.sys}/${latest.dia}` : '--/--';
+  const steadyOverlay = metrics.chart.recent.length >= 2
+    ? metrics.chart.recent.map((reading) => reading.steady ? 1 : 0.25)
+    : metrics.chart.recent.length === 1
+      ? [metrics.chart.recent[0].steady ? 1 : 0.25, metrics.chart.recent[0].steady ? 1 : 0.25]
+      : [1, 1, 1, 1, 1, 1, 1];
+  const steadyValue = metrics.total ? `${metrics.steadyPct}%` : '--';
+  const steadyTrend = metrics.total ? `${metrics.monthCount} readings this month` : 'Save a reading to begin';
 
   return (
     <AppScreen>
@@ -64,16 +72,16 @@ function TrendsScreen({ onNav, hasGlucose = true, stage = 'postpartum', readings
       <Card style={{ marginBottom: 16 }}>
         {tab === 'bp' && (
           <>
-            <ChartHead title="Blood pressure" value={latestValue} unit="mmHg latest" tone="sage" trend="Steady this month" />
+            <ChartHead title="Blood pressure" value={latestValue} unit="mmHg latest" tone={latest?.attention ? 'blush' : 'sage'} trend={metrics.trend} />
             <BPTrendChart sys={bpSys} dia={bpDia} labels={bpLabels} manualIdx={chartManualIdx} />
             <LegendRow items={[['var(--blush-500)', 'Systolic'], ['var(--lav-dot)', 'Diastolic', true], ['var(--blush-500)', 'Manual', false, true]]} />
           </>
         )}
         {tab === 'combo' && (
           <>
-            <ChartHead title="BP &amp; medication" value="92%" unit="adherence" tone="blush" trend="Lower BP on days you log meds" />
-            <AdherenceOverlay sys={[126, 124, 121, 123, 119, 118]} adherence={[1, 0.5, 1, 1, 1, 1]} labels={['wk1', 'wk2', 'wk3', 'wk4', 'wk5', 'now']} />
-            <LegendRow items={[['var(--blush-500)', 'Systolic'], ['var(--blush-200)', 'Med taken']]} />
+            <ChartHead title="BP consistency" value={steadyValue} unit="steady readings" tone="blush" trend={steadyTrend} />
+            <AdherenceOverlay sys={bpSys} adherence={steadyOverlay} labels={bpLabels} />
+            <LegendRow items={[['var(--blush-500)', 'Systolic'], ['var(--blush-200)', 'Steady day']]} />
           </>
         )}
         {tab === 'weight' && (

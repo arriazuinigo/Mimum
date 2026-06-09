@@ -102,11 +102,11 @@ function Root() {
             {!backend.loading && signedIn && backend.profileReady && (
               <>
                 {activeScreen === 'home' && <HomeScreen user={user} stage={stage} mascotState={t.homeMascot} onNav={nav} onMeasure={openMeasure} lastReading={lastReading} readings={readings} />}
-                {activeScreen === 'journey' && <JourneyScreen onNav={nav} />}
+                {activeScreen === 'journey' && <JourneyScreen onNav={nav} readings={readings} />}
                 {activeScreen === 'trends' && <TrendsScreen stage={stage} onNav={nav} readings={readings} />}
                 {activeScreen === 'log' && <LogScreen onNav={nav} />}
                 {activeScreen === 'measure' && <BreatheScreen start={measureStart} simulate={t.reading === 'Elevated' ? 'elevated' : 'inrange'} onExit={exitOverlay} onNav={nav} onSaved={() => nav('home')} onSaveReading={backend.saveReading} />}
-                {activeScreen === 'handoff' && <HandoffScreen onExit={() => setScreen('trends')} onNav={nav} />}
+                {activeScreen === 'handoff' && <HandoffScreen user={user} readings={readings} onExit={() => setScreen('trends')} onNav={nav} />}
                 {activeScreen === 'onboarding' && <OnboardingScreen onExit={exitOverlay} onStageSet={setStage} onFinish={async (s, answers) => { const nextStage = s || stage; if (s) setStage(s); await backend.saveProfile({ name: userName, email: backend.user.email || '', situation: nextStage, stage: nextStage, onboardingAnswers: answers || {}, onboardingComplete: true }); nav('home'); }} />}
                 {activeScreen === 'records' && <RecordsScreen onExit={() => setScreen('profile')} onNav={nav} />}
                 {activeScreen === 'profile' && <ProfileScreen user={user} auth={{ email: backend.user.email, mode: backend.mode, onSignOut: backend.signOut }} onExit={exitOverlay} onNav={nav} />}

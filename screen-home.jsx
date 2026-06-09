@@ -18,23 +18,32 @@ const HOME_STAGE = {
 };
 function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure, lastReading, readings = [] }) {
   const cfg = HOME_STAGE[stage] || HOME_STAGE.postpartum;
+  const metrics = MimumReadingMetrics.summarize(readings);
   const goMeasure = () => (onMeasure ? onMeasure('intro') : onNav('measure'));
-  const last = lastReading || { sys: 118, dia: 76, tier: 'steady' };
-  const spark = readings.length ? readings.slice(0, 6).reverse().map((r) => Number(r.sys || r.systolic)) : [124, 121, 122, 119, 120, 118];
-  const lastInRange = last.tier === 'steady';
-  const week = [
-    { label: 'M', state: 'done' }, { label: 'T', state: 'done' },
-    { label: 'W', state: 'done' }, { label: 'T', state: 'done' },
-    { label: 'F', state: 'today' }, { label: 'S', state: 'future' },
-    { label: 'S', state: 'future' },
-  ];
+  const last = metrics.latest || lastReading;
+  const hasLast = Boolean(last);
+  const spark = metrics.chart.sys.length >= 2 ? metrics.chart.sys : [115, 115];
+  const lastInRange = !last || last.tier === 'steady' || (!(last.sys >= 130 || last.systolic >= 130) && !(last.dia >= 80 || last.diastolic >= 80));
+  const week = metrics.weekDays;
+  const targetReadings = stage === 'planning' ? 5 : 8;
+  const monthProgress = Math.min(100, Math.round((metrics.monthCount / targetReadings) * 100));
+  const heroSub = metrics.total
+    ? lastInRange
+      ? `${metrics.steadyPct}% of your saved readings are steady. You are building a useful picture for follow-up.`
+      : 'Your latest reading is worth a gentle check. A calm repeat reading can help confirm the pattern.'
+    : cfg.heroSub;
+  const progressHead = stage === 'planning' ? 'Baseline progress' : 'This month';
+  const progressLabel = `${metrics.monthCount}/${targetReadings}`;
+  const progressDetail = metrics.total ? `${metrics.steadyPct}% steady readings` : 'No readings saved yet';
+  const streakLabel = metrics.currentStreak ? `${metrics.currentStreak}-day streak` : 'Start streak';
+  const heroTier = metrics.latest?.attention ? 'attention' : 'steady';
 
   return (
     <AppScreen>
       {/* header */}
       <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: 0.2 }}>Friday, June 6</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: 0.2 }}>{metrics.todayLabel}</div>
           <h1 style={{ margin: '3px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: -0.5, color: 'var(--ink)' }}>
             Good morning, {user.name}
           </h1>
@@ -64,10 +73,10 @@ function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure,
           <div style={{ position: 'relative' }}>
             <Mascot state={mascotState} h={172} float />
             <div style={{ marginTop: -6 }}>
-              <TierPill tier={user.tier} size="lg" />
+              <TierPill tier={heroTier} size="lg" />
             </div>
             <p style={{ margin: '14px auto 0', maxWidth: 280, fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
-              {cfg.heroSub}
+              {heroSub}
             </p>
           </div>
         </div>
@@ -103,7 +112,7 @@ function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure,
         <Card onClick={() => onNav('journey')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>This week</div>
-            <Pill tone="blush"><Icon name="sparkle" size={14} stroke="var(--rose-ink)" />4-day streak</Pill>
+            <Pill tone={metrics.currentStreak ? 'blush' : 'plain'}><Icon name="sparkle" size={14} stroke={metrics.currentStreak ? 'var(--rose-ink)' : 'var(--ink-3)'} />{streakLabel}</Pill>
           </div>
           <StreakStrip days={week} />
         </Card>
@@ -114,22 +123,22 @@ function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure,
         <Card pad={16} onClick={() => onNav('trends')}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>Last reading</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '4px 0 6px' }}>
-            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>{last.sys || last.systolic}</span>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-3)' }}>/{last.dia || last.diastolic}</span>
+            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>{hasLast ? (last.sys || last.systolic) : '--'}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-3)' }}>/{hasLast ? (last.dia || last.diastolic) : '--'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: lastInRange ? 'var(--sage-ink)' : 'var(--honey-ink)' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: lastInRange ? 'var(--sage-dot)' : 'var(--honey-dot)' }} />{lastInRange ? 'In range' : 'Worth watching'}
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: lastInRange ? 'var(--sage-dot)' : 'var(--honey-dot)' }} />{hasLast ? (lastInRange ? 'In range' : 'Worth watching') : 'No readings yet'}
             </span>
             <Sparkline data={spark} width={56} height={22} />
           </div>
         </Card>
         <Card pad={16} onClick={() => onNav('trends')}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>{cfg.nextHead}</div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)', margin: '6px 0 2px', letterSpacing: -0.3 }}>{cfg.nextLabel}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600 }}>{cfg.nextDetail}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>{progressHead}</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)', margin: '6px 0 2px', letterSpacing: -0.3 }}>{progressLabel}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600 }}>{progressDetail}</div>
           <div style={{ marginTop: 10, height: 6, borderRadius: 99, background: 'var(--blush-100)', overflow: 'hidden' }}>
-            <div style={{ width: cfg.nextProg, height: '100%', borderRadius: 99, background: 'var(--blush-400)' }} />
+            <div style={{ width: `${monthProgress}%`, height: '100%', borderRadius: 99, background: 'var(--blush-400)' }} />
           </div>
         </Card>
       </div>

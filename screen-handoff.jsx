@@ -1,6 +1,12 @@
 // screen-handoff.jsx — GP hand-off summary
-function HandoffScreen({ onExit, onNav }) {
+function HandoffScreen({ user, readings = [], onExit, onNav }) {
   const [sent, setSent] = useState(false);
+  const metrics = MimumReadingMetrics.summarize(readings);
+  const padSeries = (values, fallback) => values.length >= 2 ? values : values.length === 1 ? [values[0], values[0]] : fallback;
+  const bpSys = padSeries(metrics.chart.sys, [126, 123, 121, 124, 119, 118]);
+  const bpDia = padSeries(metrics.chart.dia, [84, 82, 80, 81, 78, 76]);
+  const avgValue = metrics.avg ? `${metrics.avg.sys}/${metrics.avg.dia} mmHg` : '--/-- mmHg';
+  const generatedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   if (sent) {
     return (
@@ -37,12 +43,12 @@ function HandoffScreen({ onExit, onNav }) {
           <div style={{ background: 'var(--blush-50)', padding: '18px 20px', borderBottom: '1px solid var(--hairline)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>María Álvarez</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{user?.name || 'Mimum patient'}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600, marginTop: 2 }}>Postpartum cardiovascular follow-up</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>Generated</div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>Jun 6, 2026</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{generatedDate}</div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
@@ -53,15 +59,15 @@ function HandoffScreen({ onExit, onNav }) {
 
           {/* BP trend */}
           <div style={{ padding: '18px 20px' }}>
-            <DocRow label="Blood pressure" value="118/76 mmHg" sub="avg · 6-week trend" tone="sage" />
+            <DocRow label="Blood pressure" value={avgValue} sub={`${metrics.total} reading${metrics.total === 1 ? '' : 's'} · recent avg`} tone={metrics.latest?.attention ? 'honey' : 'sage'} />
             <div style={{ margin: '6px -4px 0' }}>
-              <BPTrendChart sys={[126, 123, 121, 124, 119, 118]} dia={[84, 82, 80, 81, 78, 76]} labels={['', '', '', '', '', '']} height={120} />
+              <BPTrendChart sys={bpSys} dia={bpDia} labels={bpSys.map(() => '')} height={120} />
             </div>
           </div>
-          <SummaryLine label="Medication adherence" value="92%" detail="Labetalol · Aspirin" tone="sage" />
+          <SummaryLine label="Readings in range" value={metrics.total ? `${metrics.steadyPct}%` : '--'} detail={metrics.trend} tone={metrics.latest?.attention ? 'honey' : 'sage'} />
           <SummaryLine label="Mood (EPDS)" value="6 / 30" detail="low range · stable" tone="sage" />
           <SummaryLine label="Weight" value="68.4 kg" detail="−5.6 kg over 6 wk" tone="plain" />
-          <SummaryLine label="Breathing sessions" value="22" detail="this month" tone="plain" last />
+          <SummaryLine label="Reading days" value={String(metrics.monthDays)} detail={`${metrics.monthCount} readings this month`} tone="plain" last />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 4px', fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600 }}>
@@ -78,7 +84,7 @@ function HandoffScreen({ onExit, onNav }) {
 }
 
 function DocRow({ label, value, sub, tone }) {
-  const col = tone === 'sage' ? 'var(--sage-ink)' : 'var(--ink)';
+  const col = tone === 'sage' ? 'var(--sage-ink)' : tone === 'honey' ? 'var(--honey-ink)' : 'var(--ink)';
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
       <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{label}</div>
@@ -91,7 +97,7 @@ function DocRow({ label, value, sub, tone }) {
 }
 
 function SummaryLine({ label, value, detail, tone, last }) {
-  const col = tone === 'sage' ? 'var(--sage-ink)' : 'var(--ink)';
+  const col = tone === 'sage' ? 'var(--sage-ink)' : tone === 'honey' ? 'var(--honey-ink)' : 'var(--ink)';
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--hairline)' }}>
       <div>
