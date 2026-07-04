@@ -2,12 +2,12 @@ const MimumBackend = (() => {
   const CONFIG = window.MIMUM_FIREBASE_CONFIG || {};
   const REQUIRED_CONFIG = ['apiKey', 'authDomain', 'projectId', 'appId'];
   const configured = REQUIRED_CONFIG.every((key) => Boolean(CONFIG[key]));
-  const hasFirebase = typeof firebase !== 'undefined' && configured && CONFIG.enabled === true;
+  const hasFirebase = typeof firebase !== 'undefined' && configured;
 
   const local = {
-    userKey: 'optimalPhysique.localUser',
-    profileKey: (uid) => `optimalPhysique.profile.${uid}`,
-    readingsKey: (uid) => `optimalPhysique.entries.${uid}`,
+    userKey: 'mimum.localUser',
+    profileKey: (uid) => `mimum.profile.${uid}`,
+    readingsKey: (uid) => `mimum.readings.${uid}`,
     listeners: new Set(),
     readingListeners: new Map(),
     profileListeners: new Map(),
@@ -41,66 +41,12 @@ const MimumBackend = (() => {
     return {
       uid: user.uid,
       email: user.email || '',
-      name: user.displayName || user.name || 'Alex',
+      name: user.displayName || user.name || 'María',
       isAnonymous: Boolean(user.isAnonymous),
     };
   };
 
   const normalizeReading = (reading = {}) => {
-    if (reading.eventType === 'body_measurement_check_in' || reading.bodyMeasures) {
-      const stamp = nowStamp();
-      const body = reading.bodyMeasures || reading;
-      return {
-        weight: Number(body.weight),
-        waist: Number(body.waist),
-        shoulders: Number(body.shoulders),
-        chest: Number(body.chest),
-        hips: Number(body.hips),
-        neck: Number(body.neck),
-        leftArm: Number(body.leftArm),
-        rightArm: Number(body.rightArm),
-        leftThigh: Number(body.leftThigh),
-        rightThigh: Number(body.rightThigh),
-        calf: Number(body.calf),
-        bodyMeasures: body,
-        calories: Number(reading.calories ?? 2100),
-        protein: Number(reading.protein ?? 162),
-        steps: Number(reading.steps ?? 9400),
-        deficit: Number(reading.deficit ?? 450),
-        tier: Number(body.waist) <= 77 ? 'steady' : 'attention',
-        source: 'manual',
-        manual: true,
-        takenAtLabel: reading.takenAtLabel || 'today',
-        eventType: 'body_measurement_check_in',
-        ...stamp,
-      };
-    }
-
-    const hasPhysiqueFields = ['weight', 'waist', 'calories', 'protein', 'steps'].some((key) => reading[key] != null);
-    if (hasPhysiqueFields) {
-      const weight = Number(reading.weight);
-      const waist = Number(reading.waist);
-      const calories = Number(reading.calories);
-      const protein = Number(reading.protein);
-      const steps = Number(reading.steps);
-      const deficit = Number(reading.deficit ?? 450);
-      const stamp = nowStamp();
-      return {
-        weight,
-        waist,
-        calories,
-        protein,
-        steps,
-        deficit,
-        tier: deficit >= 350 && deficit <= 550 && protein >= 150 && protein <= 175 ? 'steady' : 'attention',
-        source: reading.source || 'manual',
-        manual: true,
-        takenAtLabel: reading.takenAtLabel || 'today',
-        eventType: 'physique_check_in',
-        ...stamp,
-      };
-    }
-
     const systolic = Number(reading.sys ?? reading.systolic);
     const diastolic = Number(reading.dia ?? reading.diastolic);
     const pulse = Number(reading.pulse);
@@ -124,7 +70,7 @@ const MimumBackend = (() => {
   const localUserFromEmail = ({ email, name }) => ({
     uid: `local-${encodeURIComponent(email || name || 'guest').replace(/[^a-z0-9]/gi, '').toLowerCase()}`,
     email: email || '',
-    name: name || (email ? email.split('@')[0] : 'Alex'),
+    name: name || (email ? email.split('@')[0] : 'María'),
     isAnonymous: !email,
   });
 
@@ -155,7 +101,7 @@ const MimumBackend = (() => {
       const user = localUserFromEmail({ email, name });
       writeJSON(local.userKey, user);
       const currentProfile = readJSON(local.profileKey(user.uid), null);
-      if (!currentProfile) writeJSON(local.profileKey(user.uid), { id_user: user.uid, name: user.name, email: user.email, situation: 'cutting', stage: 'cutting', onboardingComplete: true });
+      if (!currentProfile) writeJSON(local.profileKey(user.uid), { id_user: user.uid, name: user.name, email: user.email, situation: '', stage: '', onboardingComplete: false });
       emitAuth();
       emitProfile(user.uid);
       return user;
@@ -164,10 +110,10 @@ const MimumBackend = (() => {
       return localBackend.signIn({ email, name });
     },
     async signInWithGoogle() {
-      return localBackend.signIn({ email: 'google.local@optimal-physique.test', name: 'Google user' });
+      return localBackend.signIn({ email: 'google.local@mimum.test', name: 'Google user' });
     },
     async continueAsGuest(name) {
-      return localBackend.signIn({ name: name || 'Alex' });
+      return localBackend.signIn({ name: name || 'María' });
     },
     async signOut() {
       window.localStorage.removeItem(local.userKey);
@@ -245,16 +191,16 @@ const MimumBackend = (() => {
       const user = {
         uid: cred.user.uid,
         email: cred.user.email || '',
-        name: name || cred.user.displayName || 'Alex',
+        name: name || cred.user.displayName || 'María',
         isAnonymous: Boolean(cred.user.isAnonymous),
       };
       await userDoc(user.uid).set({
         id_user: user.uid,
         name: user.name,
         email: user.email,
-        situation: 'cutting',
-        stage: 'cutting',
-        onboardingComplete: true,
+        situation: '',
+        stage: '',
+        onboardingComplete: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -271,13 +217,13 @@ const MimumBackend = (() => {
         id_user: user.uid,
         name: user.name,
         email: user.email,
-        situation: snap.exists ? snap.data()?.situation || 'cutting' : 'cutting',
-        stage: snap.exists ? snap.data()?.stage || 'cutting' : 'cutting',
+        situation: snap.exists ? snap.data()?.situation || '' : '',
+        stage: snap.exists ? snap.data()?.stage || '' : '',
         provider: 'google.com',
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (!snap.exists) {
-        profile.onboardingComplete = true;
+        profile.onboardingComplete = false;
         profile.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       }
       await ref.set(profile, { merge: true });
@@ -289,7 +235,7 @@ const MimumBackend = (() => {
       const user = {
         uid: cred.user.uid,
         email: '',
-        name: name || cred.user.displayName || 'Alex',
+        name: name || cred.user.displayName || 'María',
         isAnonymous: true,
       };
       const ref = userDoc(user.uid);
@@ -298,13 +244,13 @@ const MimumBackend = (() => {
         id_user: user.uid,
         name: user.name,
         email: '',
-        situation: snap.exists ? snap.data()?.situation || 'cutting' : 'cutting',
-        stage: snap.exists ? snap.data()?.stage || 'cutting' : 'cutting',
+        situation: snap.exists ? snap.data()?.situation || '' : '',
+        stage: snap.exists ? snap.data()?.stage || '' : '',
         anonymous: true,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (!snap.exists) {
-        profile.onboardingComplete = true;
+        profile.onboardingComplete = false;
         profile.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       }
       await ref.set(profile, { merge: true });

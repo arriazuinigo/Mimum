@@ -1,12 +1,12 @@
 {
-  "name": "Optimal Physique",
-  "short_name": "Physique",
-  "description": "A calm body measurement app for comparing your current structure with an ideal silhouette.",
+  "name": "Mimum",
+  "short_name": "Mimum",
+  "description": "Heart care, gently.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#eef7f3",
-  "theme_color": "#eef7f3",
+  "background_color": "#f7eeeb",
+  "theme_color": "#f7eeeb",
   "icons": [
     {
       "src": "uploads/image-removebg-preview-4.png",

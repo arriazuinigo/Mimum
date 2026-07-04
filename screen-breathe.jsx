@@ -1,452 +1,510 @@
-// screen-breathe.jsx — Body measurement check-in for Optimal Physique
-const IDEAL_BODY = {
-  height: 166,
-  weight: 71.5,
-  shoulders: 122,
-  chest: 104,
-  waist: 77,
-  hips: 92,
-  neck: 38,
-  arm: 36,
-  thigh: 56,
-  calf: 37,
+// screen-breathe.jsx — Breathe-then-measure ritual
+// phases: intro → breathing → measuring → result
+const { useState, useEffect, useRef } = React;
+
+const BREATH_PHASES = [
+  { name: 'in', dur: 4000, scale: 1, label: 'Breathe in', ease: 'cubic-bezier(.4,.0,.4,1)' },
+  { name: 'hold', dur: 1600, scale: 1, label: 'Hold softly', ease: 'linear' },
+  { name: 'out', dur: 6000, scale: 0.62, label: 'Breathe out', ease: 'cubic-bezier(.4,.0,.4,1)' },
+];
+const TOTAL_BREATHS = 4;
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const makeNormalReading = () => {
+  const sys = randomInt(105, 119);
+  const dia = randomInt(65, 79);
+  return {
+    sys,
+    dia,
+    pulse: randomInt(62, 84),
+    tier: 'steady',
+    manual: false,
+    generated: true,
+  };
 };
 
-const BODY_MEASURE_FIELDS = [
-  ['weight', 'Peso', 'kg', 0.1],
-  ['shoulders', 'Hombros', 'cm', 0.5],
-  ['chest', 'Pecho', 'cm', 0.5],
-  ['waist', 'Cintura', 'cm', 0.5],
-  ['hips', 'Cadera', 'cm', 0.5],
-  ['neck', 'Cuello', 'cm', 0.5],
-  ['leftArm', 'Brazo izq.', 'cm', 0.5],
-  ['rightArm', 'Brazo der.', 'cm', 0.5],
-  ['leftThigh', 'Muslo izq.', 'cm', 0.5],
-  ['rightThigh', 'Muslo der.', 'cm', 0.5],
-  ['calf', 'Pantorrilla', 'cm', 0.5],
-];
+function BreatheScreen({ onExit, onNav, onSaved, onSaveReading, simulate = 'inrange', start = 'intro' }) {
+  // intro → connect → guide → breathing → measuring → result   (+ 'manual' branch)
+  const [phase, setPhase] = useState(start);
+  const [manualReading, setManualReading] = useState(null);
+  const [syncedReading] = useState(() => makeNormalReading());
 
-function BreatheScreen({ simulate = 'inrange', onExit, onSaved, onSaveReading }) {
-  const plan = PhysiqueMetrics.PLAN;
-  const defaults = simulate === 'elevated'
-    ? { weight: 76.8, shoulders: 113, chest: 100, waist: 86, hips: 97, neck: 39, leftArm: 33.5, rightArm: 34, leftThigh: 56, rightThigh: 56, calf: 37 }
-    : { weight: 76.5, shoulders: 114, chest: 101, waist: 85.4, hips: 96, neck: 38.5, leftArm: 34, rightArm: 34.5, leftThigh: 56, rightThigh: 56, calf: 37 };
-  const [form, setForm] = useState(defaults);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+  const reading = manualReading || syncedReading;
+  const lavBg = phase === 'breathing';
 
-  const current = normalizeBodyForm(form);
-  const waistGap = Math.max(0, current.waist - plan.targetWaist);
-  const structureScore = bodyStructureScore(current);
-  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, overflow: 'hidden',
+      background: lavBg
+        ? 'radial-gradient(130% 90% at 50% 18%, var(--lav-fill) 0%, var(--bg-app) 60%)'
+        : 'radial-gradient(130% 90% at 50% 12%, var(--blush-100) 0%, var(--bg-app) 58%)',
+      transition: 'background .8s ease',
+    }}>
+      {phase === 'intro' && <BreatheIntro onExit={onExit} onStart={() => setPhase('connect')} onManual={() => setPhase('manual')} />}
+      {phase === 'connect' && <ConnectCuff onExit={onExit} onContinue={() => setPhase('guide')} onSkip={() => setPhase('breathing')} onManual={() => setPhase('manual')} />}
+      {phase === 'guide' && <PlacementGuide onExit={onExit} onReady={() => setPhase('breathing')} onSkip={() => setPhase('breathing')} />}
+      {phase === 'breathing' && <BreathePacer onSkip={() => setPhase('measuring')} onDone={() => setPhase('measuring')} onExit={onExit} />}
+      {phase === 'measuring' && <Measuring onDone={() => setPhase('result')} onExit={onExit} />}
+      {phase === 'manual' && <ManualEntry onBack={() => setPhase('intro')} onSave={(r) => { setManualReading(r); setPhase('result'); }} />}
+      {phase === 'result' && <ResultView reading={reading} manual={!!manualReading} onExit={onExit} onNav={onNav} onSaved={onSaved} onSaveReading={onSaveReading} />}
+    </div>
+  );
+}
 
-  const save = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      if (onSaveReading) {
-        await onSaveReading({
-          ...current,
-          bodyMeasures: current,
-          eventType: 'body_measurement_check_in',
-        });
+// ── Intro ──────────────────────────────────────────────────────
+function BreatheIntro({ onExit, onStart, onManual }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: '58px 24px 34px' }}>
+      <TopClose onExit={onExit} />
+      <div className="fade-up" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+        <Mascot state="calm" h={176} float />
+        <h1 style={{ margin: '14px 0 0', fontSize: 28, fontWeight: 800, letterSpacing: -0.6, color: 'var(--ink)' }}>Let’s take a calm reading</h1>
+        <p style={{ margin: '12px auto 0', maxWidth: 300, fontSize: 16, lineHeight: 1.55, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
+          We’ll set up your cuff, then breathe together for a moment. A calm body gives a truer resting number — and it’s good for your heart, too.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+          <Pill tone="lav"><Icon name="clock" size={14} stroke="var(--lav-ink)" />About 3 min</Pill>
+          <Pill tone="blush"><Icon name="heart" size={13} stroke="var(--rose-ink)" />Connect → Breathe → Measure</Pill>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+        <PrimaryButton onClick={onStart}>Begin</PrimaryButton>
+        <GhostButton onClick={onManual} icon={<Icon name="plus" size={17} stroke="var(--ink-3)" sw={2.2} />}>Enter a reading manually</GhostButton>
+      </div>
+    </div>
+  );
+}
+
+// ── Connect cuff (Bluetooth pairing) ───────────────────────────
+function ConnectCuff({ onExit, onContinue, onSkip, onManual }) {
+  const [state, setState] = useState('searching'); // searching → connected
+  useEffect(() => {
+    const t = setTimeout(() => setState('connected'), 2600);
+    return () => clearTimeout(t);
+  }, []);
+  const connected = state === 'connected';
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: '58px 24px 34px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <TopClose onExit={onExit} inline />
+        <button onClick={onSkip} style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-3)', background: 'none', padding: 8 }}>I know the drill</button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+        <div style={{ position: 'relative', width: 230, height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {!connected && [0, 1, 2].map((k) => (
+            <div key={k} style={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', border: '2px solid var(--blush-300)', opacity: 0, animation: `haloPulse 2.4s ${k * 0.7}s ease-out infinite` }} />
+          ))}
+          <div style={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: connected ? 'var(--sage-fill)' : 'var(--blush-50)', transition: 'background .5s ease' }} />
+          <div style={{ animation: connected ? 'none' : 'softPulse 2s ease-in-out infinite', position: 'relative' }}>
+            <Mascot state="calm" h={120} />
+          </div>
+          {connected && (
+            <div className="pop-in" style={{ position: 'absolute', bottom: 14, right: 40, width: 40, height: 40, borderRadius: '50%', background: 'var(--sage-dot)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--sh-soft)', border: '3px solid var(--surface)' }}>
+              <Icon name="check" size={20} stroke="#fff" sw={2.8} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 22, color: connected ? 'var(--sage-ink)' : 'var(--blush-600)' }}>
+          <span style={{ animation: connected ? 'none' : 'softPulse 1.4s ease-in-out infinite' }}><Icon name="bluetooth" size={18} stroke={connected ? 'var(--sage-ink)' : 'var(--blush-600)'} sw={2.2} /></span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: 0.2 }}>{connected ? 'Connected · Omron M7' : 'Searching for your cuff…'}</span>
+        </div>
+        <h1 style={{ margin: '12px 0 0', fontSize: 25, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.4 }}>{connected ? 'Your cuff is ready' : 'Connect your cuff'}</h1>
+        <p style={{ margin: '8px auto 0', maxWidth: 280, fontSize: 15, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
+          {connected ? 'Lovely. Mimo will take it from here whenever you’re ready.' : 'Switch your monitor on and keep it close. Mimo is looking for it now.'}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+        <PrimaryButton onClick={connected ? onContinue : undefined} style={{ opacity: connected ? 1 : 0.45 }}>Continue</PrimaryButton>
+        <GhostButton onClick={onManual} icon={<Icon name="plus" size={17} stroke="var(--ink-3)" sw={2.2} />}>Enter manually instead</GhostButton>
+      </div>
+    </div>
+  );
+}
+
+// ── Placement guide ────────────────────────────────────────────
+function PlacementGuide({ onExit, onReady, onSkip }) {
+  const steps = [
+    ['heart', 'blush', 'Arm at heart level', 'Rest your arm on a table so the cuff sits level with your heart.'],
+    ['walk', 'sage', 'Feet flat, back supported', 'Sit comfortably, both feet on the floor, back against the chair.'],
+    ['leaf', 'lav', 'Soften and settle', 'Uncross your legs, rest your hand open, and relax your shoulders.'],
+    ['clock', 'honey', 'Rest for 5 minutes', 'Give yourself a calm pause before measuring. No rush at all.'],
+  ];
+  const TONE_FILL = { blush: 'var(--blush-50)', sage: 'var(--sage-fill)', lav: 'var(--lav-fill)', honey: 'var(--honey-fill)' };
+  const TONE_INK = { blush: 'var(--rose-ink)', sage: 'var(--sage-ink)', lav: 'var(--lav-ink)', honey: 'var(--honey-ink)' };
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '58px 24px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <TopClose onExit={onExit} inline />
+        <button onClick={onSkip} style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-3)', background: 'none', padding: 8 }}>I know the drill</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 24px 12px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <Mascot state="calm" h={104} />
+          <h1 style={{ margin: '6px 0 0', fontSize: 23, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.4 }}>Getting comfortable</h1>
+          <p style={{ margin: '8px auto 0', maxWidth: 290, fontSize: 14.5, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
+            A good position gives a kinder, truer reading. Four easy steps.
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+          {steps.map(([icon, tone, title, sub], i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 20, background: 'var(--surface)', boxShadow: 'var(--sh-soft)', border: '1px solid oklch(92% 0.008 24 / 0.6)' }}>
+              <div style={{ position: 'relative', width: 46, height: 46, borderRadius: 14, background: TONE_FILL[tone], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name={icon} size={23} stroke={TONE_INK[tone]} />
+                <span style={{ position: 'absolute', top: -6, left: -6, width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', boxShadow: 'var(--sh-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: 'var(--ink-2)' }}>{i + 1}</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>{title}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 500, marginTop: 2, lineHeight: 1.4 }}>{sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '10px 24px 30px', background: 'linear-gradient(180deg, transparent, var(--bg-app) 30%)' }}>
+        <PrimaryButton onClick={onReady} icon={<Icon name="heart" size={19} stroke="#fff" fill="oklch(100% 0 0 / 0.25)" />}>I’m ready to breathe</PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+// ── Manual BP entry ────────────────────────────────────────────
+function ManualEntry({ onBack, onSave }) {
+  const [sys, setSys] = useState(118);
+  const [dia, setDia] = useState(76);
+  const [pulse, setPulse] = useState(72);
+  const [when, setWhen] = useState('now');
+
+  const tier = (sys >= 130 || dia >= 80) ? 'attention' : 'steady';
+  const whenOpts = [['now', 'Now'], ['earlier', 'Earlier today'], ['yesterday', 'Yesterday']];
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-app)' }}>
+      <div style={{ padding: '58px 22px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <IconButton onClick={onBack} icon={<Icon name="chevronLeft" size={20} stroke="var(--ink-2)" />} label="Back" size={42} />
+        <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--ink)' }}>Enter a reading</div>
+        <div style={{ width: 42 }} />
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 22px 16px' }}>
+        <p style={{ margin: '0 2px 16px', fontSize: 14.5, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
+          For readings taken at the pharmacy, your doctor’s, or with another device. It’ll sit right alongside your synced ones.
+        </p>
+
+        <Card pad={18} style={{ marginBottom: 14 }}>
+          <BigStepper label="Systolic" sub="top number" value={sys} onChange={setSys} min={70} max={220} tone="blush" />
+          <Divider style={{ margin: '14px 0' }} />
+          <BigStepper label="Diastolic" sub="bottom number" value={dia} onChange={setDia} min={40} max={140} tone="lav" />
+          <Divider style={{ margin: '14px 0' }} />
+          <BigStepper label="Pulse" sub="beats per minute" value={pulse} onChange={setPulse} min={40} max={180} tone="sage" />
+        </Card>
+
+        {/* when */}
+        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', margin: '4px 2px 8px' }}>When was it taken?</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {whenOpts.map(([id, label]) => {
+            const on = when === id;
+            return (
+              <button key={id} onClick={() => setWhen(id)} {...pressHandlers(0.97)} style={{
+                flex: 1, padding: '12px 8px', borderRadius: 14, fontSize: 13.5, fontWeight: 700,
+                background: on ? 'var(--blush-50)' : 'var(--surface)',
+                color: on ? 'var(--rose-ink)' : 'var(--ink-2)',
+                border: on ? '2px solid var(--blush-400)' : '2px solid oklch(92% 0.01 24 / 0.7)',
+                boxShadow: on ? 'none' : 'var(--sh-soft)',
+              }}>{label}</button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 16, background: 'var(--bg-soft)', fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600 }}>
+          <Icon name="info" size={15} stroke="var(--ink-3)" />Manual readings show a small dot in your trends, so you always know which is which.
+        </div>
+      </div>
+
+      <div style={{ padding: '10px 22px 30px', background: 'linear-gradient(180deg, transparent, var(--bg-app) 30%)' }}>
+        <PrimaryButton onClick={() => onSave({ sys, dia, pulse, tier, manual: true, takenAtLabel: when })} icon={<Icon name="check" size={19} stroke="#fff" sw={2.4} />}>Save this reading</PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+function BigStepper({ label, sub, value, onChange, min, max, tone = 'blush' }) {
+  const TONE_INK = { blush: 'var(--rose-ink)', lav: 'var(--lav-ink)', sage: 'var(--sage-ink)' };
+  const clamp = (v) => Math.max(min, Math.min(max, v));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--ink)' }}>{label}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{sub}</div>
+      </div>
+      <button onClick={() => onChange(clamp(value - 1))} {...pressHandlers(0.9)} style={stepBtnB}><Icon name="minus" size={18} stroke={TONE_INK[tone]} sw={2.4} /></button>
+      <div style={{ minWidth: 48, textAlign: 'center' }}>
+        <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 }}>{value}</span>
+      </div>
+      <button onClick={() => onChange(clamp(value + 1))} {...pressHandlers(0.9)} style={stepBtnB}><Icon name="plus" size={18} stroke={TONE_INK[tone]} sw={2.4} /></button>
+    </div>
+  );
+}
+const stepBtnB = {
+  width: 40, height: 40, borderRadius: '50%', background: 'var(--blush-100)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .12s ease', flexShrink: 0,
+};
+
+// ── Paced breathing ────────────────────────────────────────────
+function BreathePacer({ onDone, onSkip, onExit }) {
+  const [idx, setIdx] = useState(0);        // index into BREATH_PHASES
+  const [breath, setBreath] = useState(1);  // current breath count
+  const [scale, setScale] = useState(0.62);
+  const timer = useRef(null);
+
+  useEffect(() => {
+    const ph = BREATH_PHASES[idx];
+    // apply target scale for this phase
+    requestAnimationFrame(() => setScale(ph.scale));
+    timer.current = setTimeout(() => {
+      if (idx === BREATH_PHASES.length - 1) {
+        // finished an exhale → next breath or done
+        if (breath >= TOTAL_BREATHS) { onDone(); return; }
+        setBreath((b) => b + 1);
+        setIdx(0);
+      } else {
+        setIdx((i) => i + 1);
       }
+    }, ph.dur);
+    return () => clearTimeout(timer.current);
+  }, [idx, breath]);
+
+  const ph = BREATH_PHASES[idx];
+  const ringSize = 270;
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: '58px 24px 34px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <TopClose onExit={onExit} inline />
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--lav-ink)' }}>Breath {breath} of {TOTAL_BREATHS}</div>
+        <button onClick={onSkip} style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--ink-3)', background: 'none', padding: 8 }}>Skip</button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {/* pacer */}
+        <div style={{ position: 'relative', width: ringSize, height: ringSize, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* expanding halo rings */}
+          {ph.name === 'in' && [0, 1].map((k) => (
+            <div key={k} style={{
+              position: 'absolute', width: ringSize, height: ringSize, borderRadius: '50%',
+              border: '2px solid var(--lav-dot)', opacity: 0,
+              animation: `haloPulse 4s ${k * 1.4}s ease-out infinite`,
+            }} />
+          ))}
+          {/* soft pacer disc */}
+          <div style={{
+            position: 'absolute', width: ringSize, height: ringSize, borderRadius: '50%',
+            background: 'radial-gradient(circle, oklch(92% 0.04 295 / 0.85), oklch(95% 0.03 295 / 0.25) 70%)',
+            transform: `scale(${scale})`,
+            transition: `transform ${ph.dur}ms ${ph.ease}`,
+          }} />
+          <div style={{
+            position: 'absolute', width: ringSize - 36, height: ringSize - 36, borderRadius: '50%',
+            border: '2px solid oklch(80% 0.05 295 / 0.5)',
+            transform: `scale(${scale})`,
+            transition: `transform ${ph.dur}ms ${ph.ease}`,
+          }} />
+          {/* mascot scales with the breath */}
+          <div style={{ transform: `scale(${0.78 + scale * 0.34})`, transition: `transform ${ph.dur}ms ${ph.ease}`, position: 'relative' }}>
+            <Mascot state="breathing" h={150} />
+          </div>
+        </div>
+
+        {/* label */}
+        <div key={ph.name + breath} className="fade-up" style={{ marginTop: 26, textAlign: 'center' }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--lav-ink)', letterSpacing: -0.3 }}>{ph.label}</div>
+          <div style={{ fontSize: 14.5, color: 'var(--ink-3)', marginTop: 6, fontWeight: 600 }}>Let your shoulders soften</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <GhostButton onClick={onSkip} icon={<Icon name="arrowRight" size={17} stroke="var(--ink-3)" />}>I’m calm — skip to measure</GhostButton>
+      </div>
+    </div>
+  );
+}
+
+// ── Measuring (Bluetooth cuff) ─────────────────────────────────
+function Measuring({ onDone, onExit }) {
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    const start = Date.now(); const total = 4600;
+    const iv = setInterval(() => {
+      const p = Math.min(1, (Date.now() - start) / total);
+      setPct(p);
+      if (p >= 1) { clearInterval(iv); setTimeout(onDone, 350); }
+    }, 60);
+    return () => clearInterval(iv);
+  }, []);
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: '58px 24px 34px' }}>
+      <TopClose onExit={onExit} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+        <RingProgress value={pct} size={210} stroke={10} color="var(--blush-400)" track="var(--blush-100)">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ animation: 'softPulse 2.4s ease-in-out infinite' }}>
+              <Mascot state="breathing" h={104} />
+            </div>
+          </div>
+        </RingProgress>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 26, color: 'var(--blush-600)' }}>
+          <span style={{ animation: 'softPulse 1.6s ease-in-out infinite' }}><Icon name="bluetooth" size={18} stroke="var(--blush-600)" sw={2.2} /></span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: 0.2 }}>Cuff connected</span>
+        </div>
+        <h1 style={{ margin: '12px 0 0', fontSize: 25, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.4 }}>Measuring…</h1>
+        <p style={{ margin: '8px auto 0', maxWidth: 270, fontSize: 15, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500 }}>
+          Rest your arm and keep breathing softly. This takes just a moment.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Result ─────────────────────────────────────────────────────
+function ResultView({ reading, manual, onExit, onNav, onSaved, onSaveReading }) {
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const inRange = reading.tier === 'steady';
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      if (onSaveReading) await onSaveReading({ ...reading, manual });
       setSaved(true);
-      setTimeout(() => onSaved && onSaved(), 700);
     } catch (err) {
-      setError(err?.message || 'No se pudo guardar el check-in.');
+      setSaveError(err?.message || 'We could not save this reading. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <AppScreen pad={false} style={{ overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-        <div style={{
-          position: 'absolute', top: 58, left: 22, right: 22, zIndex: 4,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <IconButton onClick={onExit} icon={<Icon name="chevronLeft" size={20} stroke="var(--ink-2)" />} label="Volver" size={42} />
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Medidas</div>
-          <div style={{ width: 42 }} />
-        </div>
-
-        <div className="fade-up" style={{
-          position: 'absolute', top: 76, left: 10, right: 10, bottom: 195,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <BodySilhouetteComparison body={current} plan={plan} />
-        </div>
-
-        <div style={{
-          position: 'absolute', left: 14, right: 14, top: 86, zIndex: 3,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'none',
-        }}>
-          <ComparisonBadge tone="green" label="Perfecto" value={`${IDEAL_BODY.waist} cm cintura`} />
-          <ComparisonBadge tone="red" label="Tú" value={`${current.waist.toFixed(1)} cm cintura`} />
-        </div>
-
-        <div style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 5,
-          padding: '8px 16px 18px',
-          background: 'linear-gradient(180deg, oklch(98.4% 0.009 158 / 0), var(--bg-app) 18%, var(--bg-app) 100%)',
-        }}>
-          <Card pad={0} style={{ overflow: 'hidden', borderRadius: 22 }}>
-            <div style={{ padding: '10px 14px 7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>Medidas corporales</div>
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 700, marginTop: 1 }}>
-                  {waistGap.toFixed(1)} cm de cintura por cerrar
-                </div>
-              </div>
-              <Pill tone={structureScore >= 80 ? 'sage' : 'honey'}>{structureScore}% ideal</Pill>
-            </div>
-
-            <div style={{
-              maxHeight: 74,
-              overflowY: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              padding: '0 10px 7px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-            }}>
-              {BODY_MEASURE_FIELDS.map(([key, label, unit, step]) => (
-                <MeasureRow
-                  key={key}
-                  label={label}
-                  value={form[key]}
-                  unit={unit}
-                  step={step}
-                  ideal={idealForMeasure(key)}
-                  onChange={(v) => setValue(key, v)}
-                />
-              ))}
-              {error && (
-                <div style={{ borderRadius: 14, padding: '10px 12px', background: 'var(--honey-fill)', color: 'var(--honey-ink)', fontSize: 12.5, fontWeight: 800 }}>
-                  {error}
-                </div>
-              )}
-            </div>
-
-            <div style={{ padding: '7px 10px 11px', borderTop: '1px solid var(--hairline)' }}>
-              <PrimaryButton onClick={saving || saved ? undefined : save} icon={<Icon name={saved ? 'check' : 'plus'} size={19} stroke="#fff" sw={2.4} />} style={{ height: 44, opacity: saving ? 0.65 : 1, fontSize: 15.5 }}>
-                {saved ? 'Guardado' : saving ? 'Guardando...' : 'Guardar medidas'}
-              </PrimaryButton>
-            </div>
-          </Card>
+  if (saved) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', textAlign: 'center' }}>
+        <Confetti count={30} />
+        <div className="pop-in"><Mascot state="celebrating" h={186} /></div>
+        <h1 className="fade-up" style={{ margin: '10px 0 0', fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Logged with love</h1>
+        <p className="fade-up" style={{ animationDelay: '80ms', margin: '10px auto 0', maxWidth: 280, fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500 }}>
+          That’s 5 days in a row. Your future heart is thanking you.
+        </p>
+        <div className="fade-up" style={{ animationDelay: '160ms', marginTop: 26, width: '100%', maxWidth: 320 }}>
+          <PrimaryButton onClick={onSaved}>Back home</PrimaryButton>
         </div>
       </div>
-    </AppScreen>
-  );
-}
-
-function normalizeBodyForm(form) {
-  const avg = (a, b, fallback) => {
-    const x = Number(a);
-    const y = Number(b);
-    if (Number.isFinite(x) && Number.isFinite(y)) return (x + y) / 2;
-    if (Number.isFinite(x)) return x;
-    if (Number.isFinite(y)) return y;
-    return fallback;
-  };
-  return {
-    weight: numberOr(form.weight, 76.5),
-    shoulders: numberOr(form.shoulders, 114),
-    chest: numberOr(form.chest, 101),
-    waist: numberOr(form.waist, 85.4),
-    hips: numberOr(form.hips, 96),
-    neck: numberOr(form.neck, 38.5),
-    leftArm: numberOr(form.leftArm, 34),
-    rightArm: numberOr(form.rightArm, 34.5),
-    arm: avg(form.leftArm, form.rightArm, 34.25),
-    leftThigh: numberOr(form.leftThigh, 56),
-    rightThigh: numberOr(form.rightThigh, 56),
-    thigh: avg(form.leftThigh, form.rightThigh, 56),
-    calf: numberOr(form.calf, 37),
-  };
-}
-
-function numberOr(value, fallback) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function idealForMeasure(key) {
-  const map = {
-    weight: IDEAL_BODY.weight,
-    shoulders: IDEAL_BODY.shoulders,
-    chest: IDEAL_BODY.chest,
-    waist: IDEAL_BODY.waist,
-    hips: IDEAL_BODY.hips,
-    neck: IDEAL_BODY.neck,
-    leftArm: IDEAL_BODY.arm,
-    rightArm: IDEAL_BODY.arm,
-    leftThigh: IDEAL_BODY.thigh,
-    rightThigh: IDEAL_BODY.thigh,
-    calf: IDEAL_BODY.calf,
-  };
-  return map[key];
-}
-
-function bodyStructureScore(body) {
-  const waistScore = clamp(100 - Math.abs(body.waist - IDEAL_BODY.waist) * 3.2, 0, 100);
-  const shoulderScore = clamp(100 - Math.abs(body.shoulders - IDEAL_BODY.shoulders) * 1.8, 0, 100);
-  const chestScore = clamp(100 - Math.abs(body.chest - IDEAL_BODY.chest) * 1.6, 0, 100);
-  const hipScore = clamp(100 - Math.abs(body.hips - IDEAL_BODY.hips) * 1.5, 0, 100);
-  return Math.round((waistScore * 0.42) + (shoulderScore * 0.24) + (chestScore * 0.2) + (hipScore * 0.14));
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function bodyPathFor(measures) {
-  return silhouettePath({
-    shoulder: measureToWidth(measures.shoulders, 122, 92),
-    chest: measureToWidth(measures.chest, 104, 72),
-    waist: measureToWidth(measures.waist, 77, 46),
-    hip: measureToWidth(measures.hips, 92, 58),
-    arm: measureToWidth(measures.arm, 36, 13),
-    thigh: measureToWidth(measures.thigh, 56, 22),
-    calf: measureToWidth(measures.calf, 37, 12),
-  });
-}
-
-function BodySilhouetteComparison({ body, plan }) {
-  const waistGap = Math.max(0, body.waist - plan.targetWaist);
-  const ideal = bodyPathFor(IDEAL_BODY);
-  const current = bodyPathFor(body);
-
-  return (
-    <div style={{
-      position: 'relative',
-      width: '100%',
-      height: '100%',
-      minHeight: 0,
-      borderRadius: 34,
-      background: 'linear-gradient(170deg, oklch(89% 0.045 188), oklch(58% 0.085 188))',
-      border: '1px solid oklch(70% 0.055 188 / 0.55)',
-      overflow: 'hidden',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: 'var(--sh-soft)',
-    }}>
-      <svg viewBox="0 0 260 400" width="92%" height="100%" role="img" aria-label="Comparación de silueta corporal actual e ideal">
-        <defs>
-          <radialGradient id="bodyHalo" cx="50%" cy="42%" r="62%">
-            <stop offset="0%" stopColor="oklch(98% 0.02 192 / 0.5)" />
-            <stop offset="100%" stopColor="oklch(98% 0.02 192 / 0)" />
-          </radialGradient>
-          <filter id="bodyGlow" x="-25%" y="-25%" width="150%" height="150%">
-            <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="oklch(97% 0.035 195 / 0.85)" />
-          </filter>
-        </defs>
-        <rect x="0" y="0" width="260" height="400" fill="url(#bodyHalo)" />
-        <path d={ideal} fill="oklch(54% 0.075 190)" stroke="oklch(99% 0.012 195)" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" filter="url(#bodyGlow)" />
-        <path d={current} fill="oklch(62% 0.16 30 / 0.10)" stroke="oklch(72% 0.155 30)" strokeWidth="2.2" strokeDasharray="7 5" strokeLinejoin="round" strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
-        <div style={{ fontSize: 39, fontWeight: 800, color: 'oklch(99% 0.01 195)', letterSpacing: -0.8, lineHeight: 0.95, textShadow: '0 1px 8px oklch(40% 0.06 190 / 0.5)' }}>{waistGap.toFixed(1)}</div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: 'oklch(96% 0.02 195 / 0.85)', textTransform: 'uppercase' }}>cm a cerrar</div>
-      </div>
-    </div>
-  );
-}
-
-function measureToWidth(value, ideal, base) {
-  return clamp(base + ((value - ideal) * 1.25), base * 0.82, base * 1.42);
-}
-
-// Single connected silhouette modelled on the reference artwork: one closed
-// outline traces head, trapezius, deltoid, hanging arm, hand, up the inner
-// arm to the armpit, down the torso to the hip, leg, foot and up the inner
-// leg to the crotch — then mirrors itself for the left side. Teardrop gaps
-// open naturally between arms and waist, and a thin slit separates the legs.
-// The measurements (shoulders, chest, waist, hip, arm, thigh, calf) drive the
-// widths so the ideal and current bodies overlay precisely.
-function silhouettePath({ shoulder, chest, waist, hip, arm, thigh, calf }) {
-  const cx = 130;
-
-  // fixed proportions
-  const crownY = 28;
-  const crotchY = 218;
-  const headW = 17;
-  const neckW = 10.5;
-
-  // half-widths driven by the measurements
-  const shoulderX = shoulder / 2;
-  const chestX = chest / 2;
-  const armpitX = chestX - 1;
-  const waistX = waist / 2;
-  const hipX = hip / 2 + 1;
-  const upperW = arm * 0.32 + 3;
-  const foreW = arm * 0.24 + 2.4;
-  const wristW = 3.5;
-  const thighW = thigh * 0.5 + 4;
-  const kneeW = thigh * 0.27 + 3;
-  const calfW = calf * 0.55 + 4;
-  const ankleW = 4;
-
-  // the arm hangs abducted ~35 degrees from the body; P(t, w) walks a
-  // distance t down the arm centerline from the shoulder pivot and offsets
-  // w along the outer normal, returning [xOffsetFromCentre, y]
-  const sA = 0.574;
-  const cA = 0.819;
-  const cTop = shoulderX - upperW + 2;
-  const P = (t, w) => [cTop + t * sA + w * cA, 118 + t * cA - w * sA];
-
-  // the legs open ~20 degrees from a pivot near the hip joint; L(t, w)
-  // works exactly like P(t, w) but along the leg centerline
-  const sL = 0.342;
-  const cL = 0.94;
-  const legX = hipX * 0.4;
-  const L = (t, w) => [legX + t * sL + w * cL, 210 + t * cL - w * sL];
-
-  const dPeak = P(8, upperW + 1.6);
-  const eOut = P(52, foreW);
-  const eIn = P(52, -foreW);
-  const wOut = P(97, wristW);
-  const wIn = P(97, -wristW);
-  const hOut = P(106, 4.5);
-  const hIn = P(104, -4.3);
-  const tip = P(123, 0);
-
-  const oThigh = L(34, thighW);
-  const iThigh = L(22, -thighW);
-  const kOut = L(80, kneeW);
-  const kIn = L(80, -kneeW);
-  const cOut = L(104, calfW);
-  const cIn = L(104, -calfW);
-  const aOut = L(172, ankleW);
-  const aIn = L(172, -ankleW);
-  const A = L(172, 0);
-
-  // right-side cubic segments [c1x, c1y, c2x, c2y, px, py]; x values are
-  // offsets from the centre line, the left side is the mirrored reverse
-  const segs = [
-    // head
-    [headW * 0.6, crownY, headW, crownY + 7, headW, 46],
-    [headW, 56, 13.5, 66, 9.5, 72],
-    // jaw -> neck
-    [9.8, 76, 10.2, 81, neckW, 86],
-    // trapezius slope
-    [neckW + 8, 89, shoulderX - 15, 93, shoulderX - 4, 101],
-    // deltoid cap bulging over the shoulder into the arm
-    [shoulderX - 0.8, 103.4, dPeak[0] - 3.4, dPeak[1] - 4.9, dPeak[0], dPeak[1]],
-    // outer upper arm -> elbow
-    [dPeak[0] + 5.7, dPeak[1] + 8.2, ...P(40, foreW + 1), ...eOut],
-    // outer forearm -> wrist
-    [...P(64, foreW + 0.6), ...P(86, wristW + 0.8), ...wOut],
-    // wrist -> palm
-    [...P(100, wristW + 0.9), ...P(103, 4.6), ...hOut],
-    // fingertip cap
-    [...P(113, 4.4), ...P(121, 2.4), ...tip],
-    [...P(121, -2.4), ...P(111, -4.4), ...hIn],
-    // palm -> inner wrist
-    [...P(101, -4.1), ...P(99, -3.7), ...wIn],
-    // inner forearm -> inner elbow
-    [...P(80, -(wristW + 1.4)), ...P(62, -(foreW + 0.2)), ...eIn],
-    // inner upper arm -> armpit
-    [...P(30, -(upperW + 1)), armpitX + 6, 139, armpitX, 132],
-    // lat -> waist
-    [armpitX - 1, 148, waistX + 1.5, 166, waistX, 182],
-    // waist -> hip
-    [waistX - 0.5, 193, hipX - 1.5, 197, hipX, 208],
-    // hip -> outer thigh (following the opened leg)
-    [hipX + 1, 216, oThigh[0] - 4.1, oThigh[1] - 11.3, ...oThigh],
-    // thigh -> knee
-    [...L(54, thighW - 1.2), ...L(66, kneeW + 0.8), ...kOut],
-    // knee -> calf bulge
-    [...L(88, kneeW + 0.6), ...L(96, calfW - 0.4), ...cOut],
-    // calf -> ankle
-    [...L(128, calfW - 1), ...L(158, ankleW + 0.6), ...aOut],
-    // foot: over the toes, along the sole, back to the heel
-    [A[0] + 6.5, 375.5, A[0] + 13.5, 380, A[0] + 18, 384.5],
-    [A[0] + 20, 387.3, A[0] + 17.5, 390.2, A[0] + 12.5, 390.5],
-    [A[0] + 3, 390.8, A[0] - 6.5, 390.4, A[0] - 10.5, 388.4],
-    [A[0] - 12.3, 386, aIn[0] - 1.5, aIn[1] + 6, ...aIn],
-    // inner ankle -> inner calf
-    [...L(158, -(ankleW + 0.8)), ...L(126, -(calfW - 0.6)), ...cIn],
-    // inner calf -> inner knee
-    [...L(96, -(calfW - 0.4)), ...L(88, -(kneeW + 0.6)), ...kIn],
-    // inner knee -> inner thigh
-    [...L(62, -(kneeW + 1.2)), ...L(36, -(thighW - 0.6)), ...iThigh],
-    // inner thigh -> crotch
-    [3.4, 228, 1.4, 222.5, 0, crotchY],
-  ];
-
-  const r = (v) => Math.round(v * 10) / 10;
-  const parts = [`M ${cx} ${crownY}`];
-  for (const g of segs) {
-    parts.push(`C ${r(cx + g[0])} ${r(g[1])}, ${r(cx + g[2])} ${r(g[3])}, ${r(cx + g[4])} ${r(g[5])}`);
+    );
   }
-  for (let i = segs.length - 1; i >= 0; i--) {
-    const g = segs[i];
-    const px = i > 0 ? segs[i - 1][4] : 0;
-    const py = i > 0 ? segs[i - 1][5] : crownY;
-    parts.push(`C ${r(cx - g[2])} ${r(g[3])}, ${r(cx - g[0])} ${r(g[1])}, ${r(cx - px)} ${r(py)}`);
-  }
-  parts.push('Z');
-  return parts.join(' ');
-}
 
-function ComparisonBadge({ tone, label, value }) {
-  const color = tone === 'green' ? 'oklch(54% 0.13 152)' : 'oklch(56% 0.18 28)';
   return (
-    <div style={{ minWidth: 112, borderRadius: 18, background: 'oklch(100% 0 0 / 0.72)', border: '1px solid oklch(90% 0.018 160 / 0.8)', padding: '10px 12px', boxShadow: 'var(--sh-soft)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase' }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />
-        {label}
-      </div>
-      <div style={{ marginTop: 3, fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{value}</div>
-    </div>
-  );
-}
-
-function MeasureRow({ label, value, unit, step, ideal, onChange }) {
-  const round = (v) => Math.round(v * 10) / 10;
-  const numeric = numberOr(value, 0);
-  const delta = numeric - ideal;
-  const next = (amount) => onChange(round(Math.max(0, numeric + amount)));
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 7, borderRadius: 14, background: 'var(--bg-soft)', padding: '6px 8px' }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{label}</div>
-        <div style={{ fontSize: 9.5, fontWeight: 800, color: Math.abs(delta) <= 1 ? 'var(--sage-ink)' : 'var(--ink-3)' }}>
-          ideal {ideal}{unit} {Math.abs(delta) > 0.2 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}` : 'ok'}
+    <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', padding: '58px 22px 30px' }}>
+      <TopClose onExit={onExit} />
+      <div style={{ textAlign: 'center' }}>
+        <div className="pop-in" style={{ position: 'relative' }}>
+          {inRange && <Confetti count={18} />}
+          <Mascot state={inRange ? 'proud' : 'calm'} h={150} float />
+        </div>
+        <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <TierPill tier={reading.tier} size="lg" />
+          {manual && <Pill tone="plain" style={{ fontSize: 11.5 }}><Icon name="plus" size={12} stroke="var(--ink-2)" sw={2.4} />Entered manually</Pill>}
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <button onClick={() => next(-step)} {...pressHandlers(0.9)} style={measureStepBtn}>
-          <Icon name="minus" size={15} stroke="var(--rose-ink)" sw={2.4} />
-        </button>
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          inputMode="decimal"
-          style={{
-            width: 52, height: 30, borderRadius: 11, border: '1px solid var(--hairline)',
-            background: 'var(--surface)', textAlign: 'center', outline: 'none',
-            fontSize: 14.5, fontWeight: 800, color: 'var(--ink)', fontFamily: 'inherit',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        />
-        <button onClick={() => next(step)} {...pressHandlers(0.9)} style={measureStepBtn}>
-          <Icon name="plus" size={15} stroke="var(--rose-ink)" sw={2.4} />
-        </button>
+
+      {/* reading card */}
+      <Card style={{ marginTop: 18, textAlign: 'center' }} pad={24}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: 0.3, textTransform: 'uppercase' }}>Your reading</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, margin: '6px 0 2px' }}>
+          <span style={{ fontSize: 56, fontWeight: 800, color: 'var(--ink)', letterSpacing: -1.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{reading.sys}</span>
+          <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--ink-3)' }}>/{reading.dia}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-3)', marginLeft: 4 }}>mmHg</span>
+        </div>
+        {/* healthy band marker */}
+        <div style={{ position: 'relative', height: 12, borderRadius: 99, margin: '16px 6px 8px', background: 'linear-gradient(90deg, var(--sage-fill), var(--sage-fill) 62%, var(--honey-fill) 78%, var(--honey-fill))' }}>
+          <div style={{
+            position: 'absolute', top: '50%', left: `${Math.min(96, Math.max(4, ((reading.sys - 90) / 80) * 100))}%`,
+            transform: 'translate(-50%, -50%)', width: 18, height: 18, borderRadius: '50%',
+            background: 'var(--surface)', border: `3px solid ${inRange ? 'var(--sage-dot)' : 'var(--honey-dot)'}`, boxShadow: 'var(--sh-soft)',
+          }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)', padding: '0 4px' }}>
+          <span>Calm range</span><span>Worth watching</span>
+        </div>
+        <Divider style={{ margin: '16px 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+          <MiniStat label="Pulse" value={reading.pulse} unit="bpm" />
+          <div style={{ width: 1, background: 'var(--hairline)' }} />
+          <MiniStat label="vs. last" value={inRange ? '−2' : '+14'} unit="mmHg" tone={inRange ? 'sage' : 'honey'} />
+        </div>
+      </Card>
+
+      {/* reassuring message */}
+      {inRange ? (
+        <TintCard tint="var(--sage-fill)" pad={18} style={{ marginTop: 14 }}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: 'var(--sage-ink)', fontWeight: 600, textWrap: 'pretty' }}>
+            Beautifully in range. Whatever you’re doing, it’s working — keep going gently.
+          </p>
+        </TintCard>
+      ) : (
+        <TintCard tint="var(--honey-fill)" pad={18} style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 13, background: 'oklch(100% 0 0 / 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="heart" size={21} stroke="var(--honey-ink)" />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: 'var(--honey-ink)', fontWeight: 600, textWrap: 'pretty' }}>
+                This one’s a touch higher than usual. It’s okay — bodies vary day to day. It may be worth a gentle word with your GP. We can prepare a tidy summary for you.
+              </p>
+              <button onClick={() => onNav('handoff')} style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 7, background: 'oklch(100% 0 0 / 0.7)', color: 'var(--honey-ink)', fontWeight: 700, fontSize: 14, padding: '11px 16px', borderRadius: 99 }}>
+                <Icon name="doc" size={17} stroke="var(--honey-ink)" />Prepare summary for my GP
+              </button>
+            </div>
+          </div>
+        </TintCard>
+      )}
+
+      <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {saveError && (
+          <div style={{ borderRadius: 16, padding: '12px 14px', background: 'var(--honey-fill)', color: 'var(--honey-ink)', fontSize: 13, lineHeight: 1.35, fontWeight: 700 }}>
+            {saveError}
+          </div>
+        )}
+        <PrimaryButton onClick={save} style={{ opacity: saving ? 0.6 : 1 }} icon={<Icon name="check" size={20} stroke="#fff" sw={2.4} />}>
+          {saving ? 'Saving...' : 'Save to my journey'}
+        </PrimaryButton>
+        <GhostButton onClick={onExit} style={{ alignSelf: 'center' }}>Not now</GhostButton>
       </div>
-      <div style={{ width: 21, fontSize: 10.5, fontWeight: 800, color: 'var(--ink-3)', textAlign: 'right' }}>{unit}</div>
     </div>
   );
 }
 
-const measureStepBtn = {
-  width: 28, height: 28, borderRadius: '50%', background: 'var(--blush-100)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .12s ease', flexShrink: 0,
-};
+function MiniStat({ label, value, unit, tone }) {
+  const col = tone === 'sage' ? 'var(--sage-ink)' : tone === 'honey' ? 'var(--honey-ink)' : 'var(--ink)';
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, justifyContent: 'center', marginTop: 3 }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: col, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+// shared close button
+function TopClose({ onExit, inline }) {
+  return (
+    <div style={{ position: inline ? 'static' : 'absolute', top: 58, left: 22, zIndex: 5 }}>
+      <IconButton onClick={onExit} icon={<Icon name="close" size={20} stroke="var(--ink-2)" />} label="Close" size={42} />
+    </div>
+  );
+}
 
 Object.assign(window, { BreatheScreen });
