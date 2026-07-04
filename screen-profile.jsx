@@ -1,22 +1,26 @@
-// screen-profile.jsx — Profile & settings (entry to records, etc.)
+// screen-profile.jsx — Profile and plan settings
 function ProfileScreen({ user, auth, onExit, onNav }) {
+  const plan = PhysiqueMetrics.PLAN;
   const sections = [
     {
-      title: 'My health', rows: [
-        ['doc', 'blush', 'Medical records', '3 ways to enrich your profile', () => onNav('records'), 'records'],
-        ['pulse', 'sage', 'Pregnancy history', 'Preeclampsia · Gestational diabetes', () => onNav('onboarding')],
-        ['pill', 'lav', 'My medications', 'Labetalol · Aspirin', () => onNav('log')],
+      title: 'Plan',
+      rows: [
+        ['flag', 'blush', 'Objetivo inicial', `${plan.targetWeightRange} kg · ${plan.targetWaist} cm cintura`, () => onNav('measure')],
+        ['chart', 'honey', 'Estructura', 'Hombros, pecho, cintura y cadera', () => onNav('measure')],
+        ['weight', 'sage', 'Peso', 'Referencia junto a las medidas corporales', () => onNav('measure')],
       ],
     },
     {
-      title: 'Sharing & care', rows: [
-        ['share', 'blush', 'GP hand-off summary', 'Prepare a page for your doctor', () => onNav('handoff')],
-        ['bell', 'honey', 'Reminders', 'Gentle nudges, your way', null],
+      title: 'Medidas',
+      rows: [
+        ['pulse', 'lav', 'Check-in corporal', 'Comparación rojo vs verde', () => onNav('measure')],
+        ['doc', 'sage', 'Historial', 'Registros de medidas guardadas', () => onNav('measure')],
       ],
     },
     {
-      title: 'Privacy', rows: [
-        ['lock', 'lav', 'Your data', 'Private to you — shared only by you', null],
+      title: 'Privacidad',
+      rows: [
+        ['lock', 'lav', 'Tus datos', 'Guardados solo en tu cuenta o en este dispositivo', null],
       ],
     },
   ];
@@ -28,13 +32,12 @@ function ProfileScreen({ user, auth, onExit, onNav }) {
       <div style={{ padding: '58px 22px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <IconButton onClick={onExit} icon={<Icon name="chevronLeft" size={20} stroke="var(--ink-2)" />} label="Back" size={42} />
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>You</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Perfil</div>
           <div style={{ width: 42 }} />
         </div>
       </div>
 
       <div style={{ padding: '0 22px 30px' }}>
-        {/* identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
           <Avatar initials={user.name[0]} size={64} />
           <div>
@@ -43,10 +46,9 @@ function ProfileScreen({ user, auth, onExit, onNav }) {
           </div>
         </div>
         <p style={{ margin: '14px 2px 18px', fontSize: 14, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500 }}>
-          12 weeks postpartum · Year-one heart follow-up
+          Medición corporal: peso, cintura, hombros, pecho, cadera, brazos y piernas.
         </p>
 
-        {/* Mimum+ soft upgrade banner */}
         <button onClick={() => onNav('premium')} {...pressHandlers(0.98)} style={{
           display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
           padding: '16px 18px', borderRadius: 22, marginBottom: 22,
@@ -57,32 +59,20 @@ function ProfileScreen({ user, auth, onExit, onNav }) {
             <Icon name="sparkle" size={26} stroke="var(--lav-ink)" />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Discover Mimum+</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600, marginTop: 1 }}>Story reports, family mode, Mimo outfits</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Physique Pro</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600, marginTop: 1 }}>Informes, ajustes y escenarios de peso</div>
           </div>
           <Icon name="chevronRight" size={20} stroke="var(--lav-ink)" />
         </button>
-
-        {/* Mimum+ features (subtle locked entry points) */}
-        <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '0 4px 10px' }}>Mimum+</div>
-        <Card pad={0} style={{ overflow: 'hidden', marginBottom: 22 }}>
-          <PremiumLockRow icon="doc" tone="lav" title="Quarterly story report" sub="Your trends, warmly explained" onOpen={() => onNav('premium')} />
-          <div style={{ borderTop: '1px solid var(--hairline)' }}>
-            <PremiumLockRow icon="heart" tone="blush" title="Family mode" sub="Share only what you choose" onOpen={() => onNav('premium')} />
-          </div>
-          <div style={{ borderTop: '1px solid var(--hairline)' }}>
-            <PremiumLockRow icon="sparkle" tone="honey" title="Dress up Mimo" sub="Outfits, accessories & themes" onOpen={() => onNav('premium')} />
-          </div>
-        </Card>
 
         {sections.map((s) => (
           <div key={s.title} style={{ marginBottom: 22 }}>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '0 4px 10px' }}>{s.title}</div>
             <Card pad={0} style={{ overflow: 'hidden' }}>
-              {s.rows.map(([icon, tone, title, sub, onClick, highlight], i) => (
+              {s.rows.map(([icon, tone, title, sub, onClick], i) => (
                 <button key={title} onClick={onClick || undefined} disabled={!onClick} style={{
                   display: 'flex', alignItems: 'center', gap: 14, width: '100%', textAlign: 'left',
-                  padding: '15px 16px', background: highlight === 'records' ? 'var(--blush-50)' : 'transparent',
+                  padding: '15px 16px', background: 'transparent',
                   borderTop: i > 0 ? '1px solid var(--hairline)' : 'none',
                   cursor: onClick ? 'pointer' : 'default',
                 }}>
@@ -93,7 +83,6 @@ function ProfileScreen({ user, auth, onExit, onNav }) {
                     <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--ink)' }}>{title}</div>
                     <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>{sub}</div>
                   </div>
-                  {highlight === 'records' && <Pill tone="blush" style={{ fontSize: 11 }}>New</Pill>}
                   {onClick && <Icon name="chevronRight" size={19} stroke="var(--ink-3)" />}
                 </button>
               ))}
@@ -102,7 +91,7 @@ function ProfileScreen({ user, auth, onExit, onNav }) {
         ))}
 
         <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '0 4px 10px' }}>Account</div>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '0 4px 10px' }}>Cuenta</div>
           <Card pad={0} style={{ overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 16px' }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

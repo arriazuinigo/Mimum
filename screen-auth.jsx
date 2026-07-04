@@ -1,13 +1,13 @@
 function AuthScreen({ mode, busy, error, onSignIn, onSignUp, onGoogle, onGuest }) {
   const [creating, setCreating] = React.useState(true);
-  const [name, setName] = React.useState('María');
+  const [name, setName] = React.useState('Alex');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const canSubmit = email.trim() && password.length >= 6 && (!creating || password.length >= 6);
 
   const submit = () => {
     if (!canSubmit || busy) return;
-    const payload = { name: name.trim() || 'María', email: email.trim(), password };
+    const payload = { name: name.trim() || 'Alex', email: email.trim(), password };
     return (creating ? onSignUp(payload) : onSignIn(payload)).catch(() => {});
   };
 
@@ -21,19 +21,19 @@ function AuthScreen({ mode, busy, error, onSignIn, onSignUp, onGoogle, onGuest }
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
           <Mascot state="calm" h={156} float />
           <h1 style={{ margin: '12px 0 0', fontSize: 30, fontWeight: 800, letterSpacing: -0.7, color: 'var(--ink)' }}>
-            {creating ? 'Start with Mimum' : 'Welcome back'}
+            {creating ? 'Empieza con Optimal Physique' : 'Bienvenido de nuevo'}
           </h1>
           <p style={{ margin: '10px auto 0', maxWidth: 300, fontSize: 15.5, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
-            A calm place for your readings, check-ins, and follow-up notes.
+            Un espacio claro para comparar tu estructura actual con la silueta objetivo.
           </p>
         </div>
 
         <Card pad={16} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {creating && (
-            <AuthField label="Name" value={name} onChange={setName} autoComplete="given-name" />
+            <AuthField label="Nombre" value={name} onChange={setName} autoComplete="given-name" />
           )}
           <AuthField label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" />
-          <AuthField label="Password" value={password} onChange={setPassword} type="password" autoComplete={creating ? 'new-password' : 'current-password'} />
+          <AuthField label="Contraseña" value={password} onChange={setPassword} type="password" autoComplete={creating ? 'new-password' : 'current-password'} />
 
           {error && (
             <div style={{ borderRadius: 14, padding: '10px 12px', background: 'var(--honey-fill)', color: 'var(--honey-ink)', fontSize: 12.5, lineHeight: 1.35, fontWeight: 700 }}>
@@ -42,15 +42,15 @@ function AuthScreen({ mode, busy, error, onSignIn, onSignUp, onGoogle, onGuest }
           )}
 
           <PrimaryButton onClick={submit} style={{ height: 52, opacity: canSubmit && !busy ? 1 : 0.48 }} icon={<Icon name="heart" size={18} stroke="#fff" />}>
-            {busy ? 'One moment...' : creating ? 'Create account' : 'Sign in'}
+            {busy ? 'Un momento...' : creating ? 'Crear cuenta' : 'Entrar'}
           </PrimaryButton>
           <button onClick={() => setCreating((v) => !v)} style={{ alignSelf: 'center', padding: '8px 10px', color: 'var(--ink-2)', fontSize: 14, fontWeight: 700 }}>
-            {creating ? 'I already have an account' : 'Create a new account'}
+            {creating ? 'Ya tengo cuenta' : 'Crear una cuenta nueva'}
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--ink-3)', fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>
             <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
-            <span>Or</span>
+            <span>O</span>
             <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
           </div>
 
@@ -69,17 +69,17 @@ function AuthScreen({ mode, busy, error, onSignIn, onSignUp, onGoogle, onGuest }
               justifyContent: 'center', background: '#fff', color: '#4285f4', fontSize: 15, fontWeight: 800,
               boxShadow: '0 0 0 1px oklch(90% 0.01 24)',
             }}>G</span>
-            Continue with Google
+            Continuar con Google
           </button>
         </Card>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-        <GhostButton onClick={() => !busy && onGuest(name.trim() || 'María').catch(() => {})} icon={<Icon name="sparkle" size={16} stroke="var(--ink-3)" />}>
-          Continue as guest
+        <GhostButton onClick={() => !busy && onGuest(name.trim() || 'Alex').catch(() => {})} icon={<Icon name="sparkle" size={16} stroke="var(--ink-3)" />}>
+          Continuar como invitado
         </GhostButton>
         {mode === 'local' && (
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>Demo mode</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>Modo demo</div>
         )}
       </div>
     </div>
@@ -94,7 +94,7 @@ function AuthLoadingScreen() {
     }}>
       <div style={{ textAlign: 'center' }}>
         <Mascot state="breathing" h={144} float />
-        <div style={{ marginTop: 14, color: 'var(--ink-2)', fontWeight: 800 }}>Opening Mimum...</div>
+        <div style={{ marginTop: 14, color: 'var(--ink-2)', fontWeight: 800 }}>Abriendo Optimal Physique...</div>
       </div>
     </div>
   );

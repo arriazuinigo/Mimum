@@ -1,168 +1,165 @@
-// screen-home.jsx — Home / dashboard
-const HOME_STAGE = {
-  postpartum: {
-    heroSub: 'Your readings have been calm and steady. You’re taking beautiful care of your heart.',
-    todaySub: 'Best taken now, while you’re rested',
-    nextLabel: '12-week', nextDetail: 'in 18 days', nextProg: '64%', nextHead: 'Next check-in',
-  },
-  pregnant: {
-    heroSub: 'You and your baby are doing beautifully. A calm reading today keeps us both reassured.',
-    todaySub: 'A gentle weekly check keeps watch alongside your midwife',
-    nextLabel: 'Week 25', nextDetail: 'midwife in 4 days', nextProg: '60%', nextHead: 'This pregnancy',
-  },
-  planning: {
-    heroSub: 'We’re building a calm picture of your baseline — one gentle reading at a time.',
-    todaySub: 'A relaxed reading helps establish your natural baseline',
-    nextLabel: 'Baseline', nextDetail: '3 of 5 readings', nextProg: '60%', nextHead: 'Getting started',
-  },
-};
-function HomeScreen({ user, onNav, mascotState, stage = 'postpartum', onMeasure, lastReading, readings = [] }) {
-  const cfg = HOME_STAGE[stage] || HOME_STAGE.postpartum;
-  const metrics = MimumReadingMetrics.summarize(readings);
-  const goMeasure = () => (onMeasure ? onMeasure('intro') : onNav('measure'));
-  const last = metrics.latest || lastReading;
-  const hasLast = Boolean(last);
-  const spark = metrics.chart.sys.length >= 2 ? metrics.chart.sys : [115, 115];
-  const lastInRange = !last || last.tier === 'steady' || (!(last.sys >= 130 || last.systolic >= 130) && !(last.dia >= 80 || last.diastolic >= 80));
-  const week = metrics.weekDays;
-  const targetReadings = stage === 'planning' ? 5 : 8;
-  const monthProgress = Math.min(100, Math.round((metrics.monthCount / targetReadings) * 100));
-  const heroSub = metrics.total
-    ? lastInRange
-      ? `${metrics.steadyPct}% of your saved readings are steady. You are building a useful picture for follow-up.`
-      : 'Your latest reading is worth a gentle check. A calm repeat reading can help confirm the pattern.'
-    : cfg.heroSub;
-  const progressHead = stage === 'planning' ? 'Baseline progress' : 'This month';
-  const progressLabel = `${metrics.monthCount}/${targetReadings}`;
-  const progressDetail = metrics.total ? `${metrics.steadyPct}% steady readings` : 'No readings saved yet';
-  const streakLabel = metrics.currentStreak ? `${metrics.currentStreak}-day streak` : 'Start streak';
-  const heroTier = metrics.latest?.attention ? 'attention' : 'steady';
+// screen-home.jsx — Optimal Physique dashboard
+function HomeScreen({ user, onNav, onMeasure, readings = [] }) {
+  const metrics = PhysiqueMetrics.summarize(readings);
+  const plan = metrics.plan;
+  const latest = metrics.latest;
+  const body = latest.bodyMeasures || latest;
+  const shoulders = Number(body.shoulders || 114);
+  const chest = Number(body.chest || 101);
+  const waistGap = Math.max(0, latest.waist - plan.targetWaist);
+  const goMeasure = () => (onMeasure ? onMeasure('manual') : onNav('measure'));
+  const heroTier = latest.onPlan ? 'steady' : 'attention';
 
   return (
     <AppScreen>
-      {/* header */}
-      <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+      <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: 0.2 }}>{metrics.todayLabel}</div>
           <h1 style={{ margin: '3px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: -0.5, color: 'var(--ink)' }}>
-            Good morning, {user.name}
+            Hola, {user.name}
           </h1>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <IconButton icon={<Icon name="bell" size={21} stroke="var(--ink-2)" />} label="Notifications" />
-          <button onClick={() => onNav('profile')} {...pressHandlers(0.92)} aria-label="Profile" style={{ borderRadius: '50%', transition: 'transform .12s ease' }}>
+          <IconButton icon={<Icon name="bell" size={21} stroke="var(--ink-2)" />} label="Recordatorios" />
+          <button onClick={() => onNav('profile')} {...pressHandlers(0.92)} aria-label="Perfil" style={{ borderRadius: '50%', transition: 'transform .12s ease' }}>
             <Avatar initials={user.name[0]} size={44} />
           </button>
         </div>
       </div>
 
-      {/* hero — mascot + calm status */}
-      <div className="fade-up" style={{ animationDelay: '60ms', position: 'relative', marginTop: 6, marginBottom: 18 }}>
+      <div className="fade-up" style={{ animationDelay: '60ms', marginBottom: 14 }}>
         <div style={{
           position: 'relative', borderRadius: 'var(--r-lg)', overflow: 'hidden',
           background: 'linear-gradient(180deg, var(--surface) 0%, var(--blush-50) 100%)',
-          padding: '14px 20px 24px', textAlign: 'center',
-          border: '1px solid oklch(92% 0.02 20 / 0.7)',
+          padding: '20px 20px 22px',
+          border: '1px solid oklch(89% 0.025 170 / 0.75)',
         }}>
-          {/* soft glow behind mascot */}
           <div style={{
-            position: 'absolute', top: 64, left: '50%', transform: 'translateX(-50%)',
-            width: 230, height: 150, borderRadius: '50%',
-            background: 'radial-gradient(circle, oklch(90% 0.05 18 / 0.30), transparent 70%)', filter: 'blur(10px)',
+            position: 'absolute', right: -40, top: -54, width: 180, height: 180,
+            borderRadius: '50%', background: 'radial-gradient(circle, oklch(78% 0.10 170 / 0.22), transparent 72%)',
           }} />
-          <div style={{ position: 'relative' }}>
-            <Mascot state={mascotState} h={172} float />
-            <div style={{ marginTop: -6 }}>
-              <TierPill tier={heroTier} size="lg" />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 18 }}>
+            <RingProgress value={metrics.waistProgress / 100} size={104} stroke={9} color="var(--blush-500)" track="var(--blush-100)">
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 25, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>{metrics.waistProgress}%</div>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase' }}>cintura</div>
+              </div>
+            </RingProgress>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ marginBottom: 10 }}><TierPill tier={heroTier} size="lg" /></div>
+              <h2 style={{ margin: 0, fontSize: 24, lineHeight: 1.08, fontWeight: 800, letterSpacing: -0.5, color: 'var(--ink)' }}>
+                {waistGap.toFixed(1)} cm para acercarte a la silueta ideal
+              </h2>
+              <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.45, color: 'var(--ink-2)', fontWeight: 600 }}>
+                Comparación basada en cintura, hombros, pecho, cadera, brazos y piernas.
+              </p>
             </div>
-            <p style={{ margin: '14px auto 0', maxWidth: 280, fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
-              {heroSub}
-            </p>
           </div>
         </div>
       </div>
 
-      {/* today's action */}
-      <div className="fade-up" style={{ animationDelay: '120ms', marginBottom: 14 }}>
+      <div className="fade-up" style={{ animationDelay: '110ms', marginBottom: 14 }}>
         <Card pad={0} style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '20px 20px 18px', display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div style={{ padding: '18px 20px 16px', display: 'flex', gap: 15, alignItems: 'center' }}>
             <div style={{
               width: 56, height: 56, borderRadius: 18, flexShrink: 0,
-              background: 'linear-gradient(160deg, var(--lav-fill), oklch(90% 0.05 295))',
+              background: 'linear-gradient(160deg, var(--blush-100), var(--sage-fill))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Icon name="pulse" size={28} stroke="var(--lav-ink)" sw={2} />
+              <Icon name="weight" size={27} stroke="var(--rose-ink)" sw={2} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: 0.4, color: 'var(--rose-ink)', textTransform: 'uppercase' }}>Today</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', marginTop: 2 }}>Breathe &amp; measure</div>
-              <div style={{ fontSize: 13.5, color: 'var(--ink-2)', marginTop: 2 }}>{cfg.todaySub}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: 0.4, color: 'var(--rose-ink)', textTransform: 'uppercase' }}>Hoy</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', marginTop: 2 }}>Registrar medidas</div>
+              <div style={{ fontSize: 13.5, color: 'var(--ink-2)', marginTop: 2 }}>Peso, cintura, hombros, pecho, brazos y piernas.</div>
             </div>
           </div>
           <div style={{ padding: '0 20px 20px' }}>
-            <PrimaryButton onClick={goMeasure} icon={<Icon name="heart" size={20} stroke="#fff" fill="oklch(100% 0 0 / 0.25)" />}>
-              Begin your calm reading
+            <PrimaryButton onClick={goMeasure} icon={<Icon name="plus" size={20} stroke="#fff" />}>
+              Hacer check-in
             </PrimaryButton>
           </div>
         </Card>
       </div>
 
-      {/* this week streak */}
-      <div className="fade-up" style={{ animationDelay: '160ms', marginBottom: 14 }}>
-        <Card onClick={() => onNav('journey')}>
+      <div className="fade-up" style={{ animationDelay: '150ms', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <MetricCard label="Peso actual" value={latest.weight.toFixed(1)} unit="kg" sub={`-${metrics.weightLost.toFixed(1)} kg desde 79`} tone="sage" />
+        <MetricCard label="Cintura" value={latest.waist.toFixed(1)} unit="cm" sub={`faltan ${Math.max(0, latest.waist - plan.targetWaist).toFixed(1)} cm`} tone="blush" />
+        <MetricCard label="Hombros" value={shoulders.toFixed(0)} unit="cm" sub="ideal 122 cm" tone="honey" />
+        <MetricCard label="Pecho" value={chest.toFixed(0)} unit="cm" sub="ideal 104 cm" tone="lav" />
+      </div>
+
+      <div className="fade-up" style={{ animationDelay: '190ms', marginBottom: 14 }}>
+        <Card>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>This week</div>
-            <Pill tone={metrics.currentStreak ? 'blush' : 'plain'}><Icon name="sparkle" size={14} stroke={metrics.currentStreak ? 'var(--rose-ink)' : 'var(--ink-3)'} />{streakLabel}</Pill>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>Últimas medidas</div>
+            <Pill tone="sage"><Icon name="check" size={14} stroke="var(--sage-ink)" />Guardado</Pill>
           </div>
-          <StreakStrip days={week} />
-        </Card>
-      </div>
-
-      {/* metric snapshot row */}
-      <div className="fade-up" style={{ animationDelay: '200ms', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        <Card pad={16} onClick={() => onNav('trends')}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>Last reading</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, margin: '4px 0 6px' }}>
-            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>{hasLast ? (last.sys || last.systolic) : '--'}</span>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-3)' }}>/{hasLast ? (last.dia || last.diastolic) : '--'}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: lastInRange ? 'var(--sage-ink)' : 'var(--honey-ink)' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: lastInRange ? 'var(--sage-dot)' : 'var(--honey-dot)' }} />{hasLast ? (lastInRange ? 'In range' : 'Worth watching') : 'No readings yet'}
-            </span>
-            <Sparkline data={spark} width={56} height={22} />
-          </div>
-        </Card>
-        <Card pad={16} onClick={() => onNav('trends')}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>{progressHead}</div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)', margin: '6px 0 2px', letterSpacing: -0.3 }}>{progressLabel}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600 }}>{progressDetail}</div>
-          <div style={{ marginTop: 10, height: 6, borderRadius: 99, background: 'var(--blush-100)', overflow: 'hidden' }}>
-            <div style={{ width: `${monthProgress}%`, height: '100%', borderRadius: 99, background: 'var(--blush-400)' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <MiniMeasure label="Cintura" value={latest.waist.toFixed(1)} unit="cm" />
+            <MiniMeasure label="Hombros" value={shoulders.toFixed(0)} unit="cm" />
+            <MiniMeasure label="Pecho" value={chest.toFixed(0)} unit="cm" />
+            <MiniMeasure label="Peso" value={latest.weight.toFixed(1)} unit="kg" />
           </div>
         </Card>
       </div>
 
-      {/* gentle tip */}
-      <div className="fade-up" style={{ animationDelay: '240ms' }}>
+      <div className="fade-up" style={{ animationDelay: '230ms' }}>
         <TintCard tint="var(--sage-fill)" pad={18}>
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             <div style={{
               width: 42, height: 42, borderRadius: 14, flexShrink: 0, background: 'oklch(100% 0 0 / 0.55)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Icon name="leaf" size={23} stroke="var(--sage-ink)" />
+              <Icon name="weight" size={23} stroke="var(--sage-ink)" />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--sage-ink)', textTransform: 'uppercase', letterSpacing: 0.3 }}>Gentle tip</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--sage-ink)', textTransform: 'uppercase', letterSpacing: 0.3 }}>Prioridad</div>
               <p style={{ margin: '4px 0 0', fontSize: 14.5, lineHeight: 1.5, color: 'var(--ink)', fontWeight: 500, textWrap: 'pretty' }}>
-                A short walk after lunch can quietly support your blood pressure. No pressure — even ten minutes counts.
+                Mide siempre en el mismo momento del día. La silueta roja se acerca a la verde cuando baja la cintura y mejora la proporción hombros-cintura.
               </p>
             </div>
           </div>
         </TintCard>
       </div>
     </AppScreen>
+  );
+}
+
+function MiniMeasure({ label, value, unit }) {
+  return (
+    <div style={{ padding: '12px 13px', borderRadius: 18, background: 'var(--bg-soft)' }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--ink-3)' }}>{label}</div>
+      <div style={{ marginTop: 3, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <span style={{ fontSize: 21, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink-3)' }}>{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, unit, sub, tone = 'sage' }) {
+  const toneMap = {
+    blush: ['var(--blush-100)', 'var(--rose-ink)'],
+    sage: ['var(--sage-fill)', 'var(--sage-ink)'],
+    honey: ['var(--honey-fill)', 'var(--honey-ink)'],
+    lav: ['var(--lav-fill)', 'var(--lav-ink)'],
+  };
+  const [bg, fg] = toneMap[tone] || toneMap.sage;
+  return (
+    <Card pad={16}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>{label}</div>
+        <span style={{ width: 9, height: 9, borderRadius: '50%', background: fg }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 6 }}>
+        <span style={{ fontSize: 27, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink-3)' }}>{unit}</span>
+      </div>
+      <div style={{ marginTop: 8, display: 'inline-flex', padding: '5px 9px', borderRadius: 999, background: bg, color: fg, fontSize: 11.5, fontWeight: 800 }}>
+        {sub}
+      </div>
+    </Card>
   );
 }
 

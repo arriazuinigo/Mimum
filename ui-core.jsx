@@ -1,4 +1,4 @@
-// ui-core.jsx — shared design-system components for Lumen
+// ui-core.jsx — shared design-system components for Optimal Physique
 // Exports to window: Mascot, AppScreen, ScreenHeader, Card, TintCard, Stat,
 //   PrimaryButton, SoftButton, GhostButton, IconButton, Pill, TierPill,
 //   StreakStrip, TabBar, Icon, Badge, ProgressDots, Divider, Avatar
@@ -24,7 +24,7 @@ function Mascot({ state = 'calm', h = 180, float = false, scale = 1, style = {},
     >
       <img
         src={MASCOT_SRC[state] || MASCOT_SRC.calm}
-        alt={alt || 'Mimo, the Mimum mascot'}
+        alt={alt || 'Optimal Physique companion'}
         style={{
           height: h, width: 'auto', display: 'block',
           transform: `scale(${scale})`,
@@ -210,8 +210,8 @@ function Pill({ children, tone = 'blush', style = {} }) {
 // tier: 'steady' | 'attention'
 function TierPill({ tier = 'steady', size = 'md' }) {
   const cfg = tier === 'attention'
-    ? { fill: 'var(--honey-fill)', dot: 'var(--honey-dot)', ink: 'var(--honey-ink)', label: 'Worth a gentle check' }
-    : { fill: 'var(--sage-fill)', dot: 'var(--sage-dot)', ink: 'var(--sage-ink)', label: 'Steady' };
+    ? { fill: 'var(--honey-fill)', dot: 'var(--honey-dot)', ink: 'var(--honey-ink)', label: 'Ajustar' }
+    : { fill: 'var(--sage-fill)', dot: 'var(--sage-dot)', ink: 'var(--sage-ink)', label: 'En plan' };
   const big = size === 'lg';
   return (
     <span style={{
@@ -298,11 +298,11 @@ function ProgressDots({ total, current }) {
 // ── Tab bar ────────────────────────────────────────────────────
 function TabBar({ active, onNav }) {
   const tabs = [
-    { id: 'home', label: 'Home', icon: 'home' },
-    { id: 'journey', label: 'Journey', icon: 'calendar' },
+    { id: 'home', label: 'Plan', icon: 'home' },
+    { id: 'journey', label: 'Progreso', icon: 'calendar' },
     { id: 'measure', label: '', icon: 'pulse', center: true },
-    { id: 'trends', label: 'Trends', icon: 'chart' },
-    { id: 'log', label: 'Log', icon: 'log' },
+    { id: 'trends', label: 'Tendencias', icon: 'chart' },
+    { id: 'log', label: 'Diario', icon: 'log' },
   ];
   return (
     <div style={{

@@ -1,7 +1,4 @@
-// screen-premium.jsx — Mimum+ (soft, non-aggressive premium)
-// Exports: PremiumScreen, PremiumTag, PremiumLockRow
-
-// Small "Mimum+" tag for locked features — never blocks, just signposts.
+// screen-premium.jsx — Physique Pro
 function PremiumTag({ size = 'sm', style = {} }) {
   const big = size === 'lg';
   return (
@@ -13,12 +10,11 @@ function PremiumTag({ size = 'sm', style = {} }) {
       padding: big ? '6px 12px' : '3px 9px', borderRadius: 99,
       boxShadow: 'inset 0 0 0 1px oklch(80% 0.05 295 / 0.35)', ...style,
     }}>
-      <Icon name="sparkle" size={big ? 14 : 11} stroke="var(--lav-ink)" />Mimum+
+      <Icon name="sparkle" size={big ? 14 : 11} stroke="var(--lav-ink)" />Pro
     </span>
   );
 }
 
-// A settings/list row that's premium-locked — taps through to the premium screen.
 function PremiumLockRow({ icon, tone = 'lav', title, sub, onOpen }) {
   const TONE_FILL = { blush: 'var(--blush-50)', lav: 'var(--lav-fill)', sage: 'var(--sage-fill)', honey: 'var(--honey-fill)' };
   const TONE_INK = { blush: 'var(--rose-ink)', lav: 'var(--lav-ink)', sage: 'var(--sage-ink)', honey: 'var(--honey-ink)' };
@@ -40,40 +36,41 @@ function PremiumLockRow({ icon, tone = 'lav', title, sub, onOpen }) {
 }
 
 const PREMIUM_FEATURES = [
-  { icon: 'doc', tone: 'lav', title: 'Quarterly story report', body: 'Every three months, your trends explained in warm, plain language — with gentle lifestyle ideas. Export it as a lovely PDF.' },
-  { icon: 'heart', tone: 'blush', title: 'Family mode', body: 'Invite a partner or loved one to see only what you choose to share — and get kind tips on how to support you.' },
-  { icon: 'sparkle', tone: 'honey', title: 'Dress up Mimo', body: 'Outfits, little accessories, and soft app color themes. Make your companion feel like yours.' },
+  { icon: 'doc', tone: 'lav', title: 'Informe semanal', body: 'Peso, cintura, hombros, pecho y cadera convertidos en un resumen claro.' },
+  { icon: 'chart', tone: 'blush', title: 'Escenarios de peso', body: 'Compara llegar a 73 kg, 72 kg o 70 kg segun como responda tu cintura.' },
+  { icon: 'sparkle', tone: 'honey', title: 'Ajustes inteligentes', body: 'Sugerencias prudentes cuando el ritmo sea demasiado rapido o demasiado lento.' },
 ];
 
 const COMPARE = [
-  ['All monitoring & graphs', true, true],
-  ['Calendar with celebrations', true, true],
-  ['Breathing & calm rituals', true, true],
-  ['Safety & red-flag guidance', true, true],
-  ['First GP hand-off summary', true, true],
-  ['Quarterly story report (PDF)', false, true],
-  ['Family mode sharing', false, true],
-  ['Mimo outfits & themes', false, true],
+  ['Dashboard de corte', true, true],
+  ['Check-ins de medidas', true, true],
+  ['Graficas de peso y cintura', true, true],
+  ['Medidas de hombros, pecho y cadera', true, true],
+  ['Informe semanal PDF', false, true],
+  ['Escenarios de objetivo', false, true],
+  ['Ajustes por tendencia', false, true],
 ];
 
 function PremiumScreen({ onExit }) {
   return (
     <AppScreen pad={false}>
-      {/* hero */}
       <div style={{ position: 'relative', padding: '58px 22px 26px', textAlign: 'center', background: 'radial-gradient(120% 90% at 50% 0%, var(--lav-fill) 0%, var(--blush-50) 55%, var(--bg-app) 100%)' }}>
         <div style={{ position: 'absolute', top: 56, left: 22 }}>
           <IconButton onClick={onExit} icon={<Icon name="close" size={20} stroke="var(--ink-2)" />} label="Close" size={42} />
         </div>
-        <div style={{ paddingTop: 10 }}><Mascot state="proud" h={146} float /></div>
-        <div style={{ marginTop: 2 }}><PremiumTag size="lg" /></div>
-        <h1 style={{ margin: '12px 0 0', fontSize: 27, fontWeight: 800, letterSpacing: -0.6, color: 'var(--ink)' }}>A little more, gently</h1>
+        <div style={{ paddingTop: 18 }}>
+          <RingProgress value={0.58} size={126} stroke={10} color="var(--blush-500)" track="var(--blush-100)">
+            <Icon name="trophy" size={42} stroke="var(--rose-ink)" />
+          </RingProgress>
+        </div>
+        <div style={{ marginTop: 10 }}><PremiumTag size="lg" /></div>
+        <h1 style={{ margin: '12px 0 0', fontSize: 27, fontWeight: 800, letterSpacing: -0.6, color: 'var(--ink)' }}>Más precisión, menos ruido</h1>
         <p style={{ margin: '10px auto 0', maxWidth: 300, fontSize: 15.5, lineHeight: 1.5, color: 'var(--ink-2)', fontWeight: 500, textWrap: 'pretty' }}>
-          Everything that keeps you safe is always free. Mimum+ adds warmth, story, and a few joyful extras.
+          La versión gratis cubre el plan inicial. Pro añade informes y ajustes cuando ya tienes suficientes datos.
         </p>
       </div>
 
       <div style={{ padding: '4px 22px 30px' }}>
-        {/* feature cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '6px 0 20px' }}>
           {PREMIUM_FEATURES.map((f) => {
             const TONE_FILL = { blush: 'var(--blush-50)', lav: 'var(--lav-fill)', honey: 'var(--honey-fill)' };
@@ -94,8 +91,7 @@ function PremiumScreen({ onExit }) {
           })}
         </div>
 
-        {/* comparison */}
-        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', margin: '4px 4px 12px' }}>What’s included</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', margin: '4px 4px 12px' }}>Incluido</div>
         <Card pad={0} style={{ overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 72px', alignItems: 'center', padding: '14px 16px', background: 'var(--bg-soft)' }}>
             <div />
@@ -111,15 +107,12 @@ function PremiumScreen({ onExit }) {
           ))}
         </Card>
 
-        {/* safety reassurance */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '16px 4px 20px', fontSize: 12.5, color: 'var(--sage-ink)', fontWeight: 700 }}>
-          <Icon name="heart" size={16} stroke="var(--sage-ink)" />Safety features are never behind a paywall.
+          <Icon name="info" size={16} stroke="var(--sage-ink)" />Los datos base y las medidas corporales siguen siendo gratis.
         </div>
 
-        {/* soft CTA */}
-        <PrimaryButton onClick={onExit} icon={<Icon name="sparkle" size={19} stroke="#fff" />}>Try Mimum+ free for 30 days</PrimaryButton>
-        <div style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, marginTop: 10 }}>Then €4.99/month · cancel anytime · no nudging</div>
-        <GhostButton onClick={onExit} style={{ display: 'flex', margin: '8px auto 0' }}>Maybe later</GhostButton>
+        <PrimaryButton onClick={onExit} icon={<Icon name="sparkle" size={19} stroke="#fff" />}>Probar Pro</PrimaryButton>
+        <GhostButton onClick={onExit} style={{ display: 'flex', margin: '8px auto 0' }}>Ahora no</GhostButton>
       </div>
     </AppScreen>
   );
